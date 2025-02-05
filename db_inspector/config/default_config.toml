@@ -1,0 +1,19 @@
+
+[general]
+log_level = "info"
+log_file = "db_inspector.log"
+log_format = "text"
+default_report_format = "html"
+default_report_dir = "reports"
+
+[[databases]]
+type = "postgres"
+name = "A数据库"
+uri = "postgresql://db_ax87_user:yNqgNZKKivxEy7t9Li4O1u7Iah1FUHDz@dpg-cuhfodjtq21c73b98okg-a.oregon-postgres.render.com/db_ax87"
+checks = ["connection_check", "replication_check", "performance_check"]
+
+[[databases]]
+type = "postgres"
+name = "B数据库"
+uri = "postgresql://db_ax87_user:yNqgNZKKivxEy7t9Li4O1u7Iah1FUHDz@dpg-cuhfodjtq21c73b98okg-a.oregon-postgres.render.com/db_ax87"
+checks = ["connection_check", "replication_check", "performance_check"]
