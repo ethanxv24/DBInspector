@@ -117,12 +117,12 @@ class SummaryReportGenerator:
         <tbody>
         {% for db in databases %}
             <tr>
-                <td>{{ db.db_name }}</td>
-                <td>{{ db.status }}</td>
-                <td>{{ db.success_count }}</td>
-                <td>{{ db.failure_count }}</td>
-                <td>{{ db.warning_count }}</td>
-                <td><a href="{{ db.report_link }}">查看详细报告</a></td>
+                <td>{{ db[0].db_name }}</td>
+                <td>{{ db[0].status }}</td>
+                <td>{{ db[0].success_count }}</td>
+                <td>{{ db[0].failure_count }}</td>
+                <td>{{ db[0].warning_count }}</td>
+                <td><a href="{{ db[0].report_link }}">查看详细报告</a></td>
             </tr>
         {% endfor %}
         </tbody>
