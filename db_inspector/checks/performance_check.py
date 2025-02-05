@@ -1,5 +1,6 @@
-from db_inspector.checks.base import BaseCheck
+from db_inspector.checks.base import BaseCheck, CheckItem, Status
 
+CHECK_NAME="性能检查"
 
 class PgPerformanceCheck(BaseCheck):
     def run(self, db_connection):
@@ -11,6 +12,6 @@ class PgPerformanceCheck(BaseCheck):
         try:
             cursor = db_connection.cursor()
             cursor.execute("SELECT now()")  # 简单查询来测试响应
-            return {"status": "success", "message": "Performance check passed"}
+            return CheckItem(check_name=CHECK_NAME, status=Status.SUCCESS.value, message="Performance check passed")
         except Exception as e:
-            return {"status": "failure", "message": f"Performance check failed: {str(e)}"}
+            return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message=f"Performance check failed: {str(e)}")

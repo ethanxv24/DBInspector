@@ -29,15 +29,18 @@
 #         replication_info = self.cursor.fetchall()
 #         return {"replication_status": replication_info if replication_info else "No replication"}
 import json
+import os
 from urllib.parse import urlparse
 
 import psycopg2
 
-from db_inspector.checks.base import BaseCheck
+from db_inspector.checks.base import BaseCheck, Status
 from db_inspector.checks.connection_check import PgConnectionCheck
 from db_inspector.checks.performance_check import PgPerformanceCheck
 from db_inspector.checks.replication_check import PgReplicationCheck
 from db_inspector.pipelines.base import PipelineManager
+from db_inspector.reports.html_report import HTMLReportGenerator
+
 
 def run_pg_pipeline(db_connection):
     """
@@ -73,19 +76,21 @@ CHECKS_MAP = {
 }
 
 class PostgreSQLPipeline(PipelineManager):
-    def __init__(self,db_params=None, db_uri=None,checks=None,check_names=None, report_format='json'):
+    def __init__(self,db_name=None,db_params=None, db_uri=None,checks=None,check_names=None, report_format='json',report_dir='report'):
         """
         初始化 PostgreSQL 检查管道
         :param db_params: 数据库连接参数（如 host、dbname、user、password）
         :param checks: 可选，检查项列表，默认为空，允许传入需要执行的检查项
         :param report_format: 报告格式，默认为 'json'
         """
+        self.db_name = db_name
         self.db_params = db_params
         self.db_connection = None
         self.db_uri = db_uri if db_uri else self.parse_db_uri()
         self.checks = checks if checks else []  # 如果没有传入检查项，则使用空列表
         self.check_names = check_names if check_names else []  # 如果没有传入检查项，则使用空列表
         self.report_format = report_format
+        self.report_dir = report_dir
 
     def parse_db_uri(self):
         """
@@ -158,10 +163,30 @@ class PostgreSQLPipeline(PipelineManager):
         if not self.db_connection:
             raise ValueError("Database connection is not established")
 
-        results = []
+        check_results = []
         for check in self.checks:
             result = check.run(self.db_connection)
-            results.append(result)
+            check_results.append(result)
+
+        # 检查check_result 的正确错误的数量
+        successCnt, failureCnt,warningCnt= 0,0,0
+        for result in check_results:
+            if result.status == Status.SUCCESS.value:
+                successCnt += 1
+            elif result.status == Status.FAILURE.value:
+                failureCnt += 1
+            elif result.status == Status.WARNING.value:
+                warningCnt += 1
+
+        results = {
+            "db_name": self.db_name,
+            "check_results": check_results,
+            "success_count": successCnt,
+            "failure_count": failureCnt,
+            "warning_count": warningCnt,
+            "report_link":f"{self.db_name}_report.html",
+        },
+
         return results
 
     def generate_report(self, results):
@@ -173,11 +198,9 @@ class PostgreSQLPipeline(PipelineManager):
         if self.report_format == 'json':
             return json.dumps(results, indent=4)
         elif self.report_format == 'html':
-            # 简单生成 HTML 格式报告
-            html_report = "<html><body><h1>PostgreSQL Check Report</h1><ul>"
-            for result in results:
-                html_report += f"<li>Status: {result['status']}, Message: {result['message']}</li>"
-            html_report += "</ul></body></html>"
+            report_generator = HTMLReportGenerator()
+            # 生成 HTML 报告并写入到文件 report.html
+            html_report = report_generator.generate(results, output_file=os.path.join(self.report_dir, f"{self.db_name}_report.html"))
             return html_report
         else:
             raise ValueError("Unsupported report format")

@@ -1,5 +1,8 @@
-from db_inspector.checks.base import BaseCheck
+from tabnanny import check
 
+from db_inspector.checks.base import BaseCheck, CheckItem, Status
+
+CHECK_NAME="连接检查"
 
 class PgConnectionCheck(BaseCheck):
     def run(self, db_connection):
@@ -11,6 +14,6 @@ class PgConnectionCheck(BaseCheck):
         try:
             cursor = db_connection.cursor()
             cursor.execute("SELECT 1")
-            return {"status": "success", "message": "Connection successful"}
+            return CheckItem(check_name=CHECK_NAME, status=Status.SUCCESS.value, message="Connection successful")
         except Exception as e:
-            return {"status": "failure", "message": f"Connection failed: {str(e)}"}
+            return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message=f"Connection failed: {str(e)}")

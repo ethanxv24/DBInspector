@@ -2,8 +2,8 @@ __version__ = '0.0.1'
 from setuptools import setup, find_packages
 
 setup(
-    name='db-inspector',  # 包名
-    version='0.1',    # 包版本
+    name='dbinspector-tool',  # 包名
+    version='0.0.1',    # 包版本
     packages=find_packages(),  # 自动找到所有包
     license='BSD License',
     description='A database inspector tool',  # 简要描述
@@ -15,7 +15,7 @@ setup(
     ],
     entry_points={  # 定义命令行脚本
         'console_scripts': [
-            'db-inspector=db-inspector.script:main',  # 指定命令行工具名和主函数
+            'db_inspector=db_inspector.script:main',  # 指定命令行工具名和主函数
         ],
     },
     include_package_data=True,

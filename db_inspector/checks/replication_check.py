@@ -1,5 +1,6 @@
-from db_inspector.checks.base import BaseCheck
+from db_inspector.checks.base import BaseCheck, CheckItem, Status
 
+CHECK_NAME="主从同步检查"
 
 class PgReplicationCheck(BaseCheck):
     def run(self, db_connection):
@@ -13,7 +14,7 @@ class PgReplicationCheck(BaseCheck):
             cursor.execute("SELECT * FROM pg_stat_replication")
             replication_status = cursor.fetchall()
             if not replication_status:
-                return {"status": "failure", "message": "No replication info found"}
-            return {"status": "success", "message": "Replication is healthy"}
+                return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message="No replication info found")
+            return CheckItem(check_name=CHECK_NAME, status=Status.SUCCESS.value, message="Replication is healthy")
         except Exception as e:
-            return {"status": "failure", "message": f"Replication check failed: {str(e)}"}
+            return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message=f"Replication check failed: {str(e)}")
