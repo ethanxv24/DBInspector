@@ -1,0 +1,122 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数据库检查报告</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>数据库检查报告</h1>
+
+    
+    <h2>数据库: A数据库 (地址: :)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>检查项</th>
+                <th>状态</th>
+                <th>信息</th>
+            </tr>
+        </thead>
+        <tbody>
+        
+            <tr>
+                <td>连接检查</td>
+                <td>success</td>
+                <td>Connection successful</td>
+            </tr>
+        
+            <tr>
+                <td>主从同步检查</td>
+                <td>failure</td>
+                <td>No replication info found</td>
+            </tr>
+        
+            <tr>
+                <td>性能检查</td>
+                <td>success</td>
+                <td>Performance check passed</td>
+            </tr>
+        
+            <tr>
+                <td>性能检查2</td>
+                <td>success</td>
+                <td>Performance parameters are optimal. shared_buffers: 8192, effective_cache_size: 24576</td>
+            </tr>
+        
+            <tr>
+                <td>备份检查</td>
+                <td>failure</td>
+                <td>Backup check failed: function pg_is_in_backup() does not exist
+LINE 1: SELECT pg_is_in_backup()
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+</td>
+            </tr>
+        
+            <tr>
+                <td>磁盘空间检查</td>
+                <td>warning</td>
+                <td>Database size 7508 kB exceeds the limit.</td>
+            </tr>
+        
+            <tr>
+                <td>表和索引统计检查</td>
+                <td>success</td>
+                <td>No significant dead rows found</td>
+            </tr>
+        
+            <tr>
+                <td>WAL 日志检查</td>
+                <td>failure</td>
+                <td>WAL archive mode is off</td>
+            </tr>
+        
+            <tr>
+                <td>失效的数据槽检查</td>
+                <td>success</td>
+                <td>未发现失效的数据槽</td>
+            </tr>
+        
+            <tr>
+                <td>归档配置检查</td>
+                <td>failure</td>
+                <td>归档未启用或配置不正确</td>
+            </tr>
+        
+            <tr>
+                <td>数据库剩余年龄检查</td>
+                <td>success</td>
+                <td>数据库 &#39;postgres&#39; 剩余年龄: 2147483626.0</td>
+            </tr>
+        
+            <tr>
+                <td>表剩余年龄检查</td>
+                <td>failure</td>
+                <td>表剩余年龄检查失败: permission denied for table pg_authid
+</td>
+            </tr>
+        
+            <tr>
+                <td>从库延迟xlog检查</td>
+                <td>failure</td>
+                <td>从库延迟xlog检查失败: function pg_current_xlog_location() does not exist
+LINE 1: select client_addr, pg_xlog_location_diff(pg_current_xlog_lo...
+                                                  ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+</td>
+            </tr>
+        
+        </tbody>
+    </table>
+    
+</body>
+</html>
+            

@@ -33,15 +33,19 @@ def main(config, report_format,output_report_dir):
     # 配置有效，继续进行后续操作
     for db_config in config['databases']:
         pipe = PipelineManager()
+
+        check_names = config['general']['checks']
+        if db_config['checks'] and len(db_config['checks']) > 0:
+            check_names = db_config['checks']
+
         # 判断数据库类型 用switch case
         if db_config['type'] == 'postgres':
             # 创建 PostgreSQL 管道实例
-            pipe = PostgreSQLPipeline(db_name=db_config['name'],db_uri=db_config['uri'], check_names=db_config['checks'], report_format=report_format,report_dir=output_report_dir)
+            pipe = PostgreSQLPipeline(db_name=db_config['name'],db_uri=db_config['uri'], check_names=check_names, report_format=report_format,report_dir=output_report_dir)
         #TODO: Add support for other database types
         else:
             print(f"Unsupported database type: {db_config['type']}")
             continue
-
 
         pipe.parse_db_uri()
         pipe.connect()
@@ -61,7 +65,7 @@ def main(config, report_format,output_report_dir):
 
     # 生成汇总报告
     summary_report_generator = SummaryReportGenerator()
-    summary_report = summary_report_generator.generate(db_results,output_file=os.path.join(output_report_dir, 'summary_report.html'))
+    summary_report = summary_report_generator.generate(db_results,output_file=os.path.join(output_report_dir, '_summary_report.html'))
     print(f"Report for Summary:\n{summary_report}\n")
 
     print("All checks completed.")

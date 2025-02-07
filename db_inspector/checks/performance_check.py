@@ -1,4 +1,4 @@
-from db_inspector.checks.base import BaseCheck, CheckItem, Status
+from db_inspector.checks.base import BaseCheck, CheckItem, Status, manage_transaction
 
 CHECK_NAME="性能检查"
 
@@ -10,8 +10,8 @@ class PgPerformanceCheck(BaseCheck):
         :return: 字典，包含检查结果
         """
         try:
-            cursor = db_connection.cursor()
-            cursor.execute("SELECT now()")  # 简单查询来测试响应
+            with manage_transaction(db_connection) as cursor:
+                cursor.execute("SELECT now()")  # 简单查询来测试响应
             return CheckItem(check_name=CHECK_NAME, status=Status.SUCCESS.value, message="Performance check passed")
         except Exception as e:
             return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message=f"Performance check failed: {str(e)}")

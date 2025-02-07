@@ -1,6 +1,6 @@
 from tabnanny import check
 
-from db_inspector.checks.base import BaseCheck, CheckItem, Status
+from db_inspector.checks.base import BaseCheck, CheckItem, Status, manage_transaction
 
 CHECK_NAME="连接检查"
 
@@ -12,8 +12,8 @@ class PgConnectionCheck(BaseCheck):
         :return: 字典，包含检查结果
         """
         try:
-            cursor = db_connection.cursor()
-            cursor.execute("SELECT 1")
+            with manage_transaction(db_connection) as cursor:
+                cursor.execute("SELECT 1")
             return CheckItem(check_name=CHECK_NAME, status=Status.SUCCESS.value, message="Connection successful")
         except Exception as e:
             return CheckItem(check_name=CHECK_NAME, status=Status.FAILURE.value, message=f"Connection failed: {str(e)}")

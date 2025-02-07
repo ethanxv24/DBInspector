@@ -34,45 +34,39 @@ from urllib.parse import urlparse
 
 import psycopg2
 
+from db_inspector.checks.backup_check import PgBackupCheck
 from db_inspector.checks.base import BaseCheck, Status
 from db_inspector.checks.connection_check import PgConnectionCheck
+from db_inspector.checks.disk_space_check import PgDiskSpaceCheck
+from db_inspector.checks.performance_2_check import PgPerformance2Check
 from db_inspector.checks.performance_check import PgPerformanceCheck
 from db_inspector.checks.replication_check import PgReplicationCheck
+from db_inspector.checks.table_index_check import PgTableIndexCheck
+from db_inspector.checks.wal_check import PgWALCheck
+from db_inspector.checks.replication_slot_check import PgReplicationSlotCheck
+from db_inspector.checks.archive_config_check import PgArchiveConfigCheck
+from db_inspector.checks.database_age_check import PgDatabaseAgeCheck
+from db_inspector.checks.table_age_check import PgTableAgeCheck
+from db_inspector.checks.replica_xlog_delay_check import PgReplicaXlogDelayCheck
+
 from db_inspector.pipelines.base import PipelineManager
 from db_inspector.reports.html_report import HTMLReportGenerator
-
-
-def run_pg_pipeline(db_connection):
-    """
-    执行 PostgreSQL 数据库的检查项管道
-    :param db_connection: PostgreSQL 数据库连接对象
-    :return: 所有检查项的结果列表
-    """
-    # 创建管道管理器
-    pipeline = PipelineManager()
-
-    # 创建 PostgreSQL 特有的检查项实例
-    pg_connection_check = PgConnectionCheck()
-    pg_replication_check = PgReplicationCheck()
-    pg_performance_check = PgPerformanceCheck()
-
-    # 将检查项添加到管道中
-    pipeline.add_check(pg_connection_check)
-    pipeline.add_check(pg_replication_check)
-    pipeline.add_check(pg_performance_check)
-
-    # 执行管道，获取检查结果
-    results = pipeline.execute(db_connection)
-
-    # 返回所有检查结果
-    return results
-
 
 # 检查项名称到类的映射字典
 CHECKS_MAP = {
     "connection_check": PgConnectionCheck,
     "replication_check": PgReplicationCheck,
     "performance_check": PgPerformanceCheck,
+    "performance_2_check": PgPerformance2Check,
+    "table_index_check": PgTableIndexCheck,
+    "backup_check": PgBackupCheck,
+    "disk_space_check": PgDiskSpaceCheck,
+    "wal_check": PgWALCheck,
+    "replication_slot_check": PgReplicationSlotCheck,
+    "archive_config_check": PgArchiveConfigCheck,
+    "database_age_check": PgDatabaseAgeCheck,
+    "table_age_check": PgTableAgeCheck,
+    "replica_xlog_delay_check": PgReplicaXlogDelayCheck,
 }
 
 class PostgreSQLPipeline(PipelineManager):
