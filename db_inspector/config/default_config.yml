@@ -1,0 +1,35 @@
+general:
+    log_level: "info"
+    log_file: "db_inspector.log"
+    log_format: "text"
+    default_report_format: "html"
+    default_report_dir: "reports"
+    checks:
+        - group: "database_performance"
+          checks:
+              - "REPLICATION_SLOT_CHECK"
+              - "ARCHIVE_MODE_CHECK"
+              - "DATABASE_AGE_CHECK"
+              - "TABLE_AGE_CHECK"
+              - "REPLICA_XLOG_DELAY_CHECK"
+        - group: "database_performance2"
+          checks:
+              - "REPLICATION_SLOT_CHECK2"
+              - "ARCHIVE_MODE_CHECK2"
+
+databases:
+    - type: "postgres"
+      name: "A数据库"
+      uri: "postgresql://db_ax87_user:yNqgNZKKivxEy7t9Li4O1u7Iah1FUHDz@dpg-cuhfodjtq21c73b98okg-a.oregon-postgres.render.com/db_ax87"
+      checks:
+        - group: "database_performance"
+          checks:
+            - "REPLICATION_SLOT_CHECK"
+            - "ARCHIVE_MODE_CHECK"
+            - "DATABASE_AGE_CHECK"
+        - group: "database_performance2"
+
+    - type: "postgres"
+      name: "B数据库"
+      uri: "postgresql://db_ax87_user:yNqgNZKKivxEy7t9Li4O1u7Iah1FUHDz@dpg-cuhfodjtq21c73b98okg-a.oregon-postgres.render.com/db_ax87"
+      checks: []

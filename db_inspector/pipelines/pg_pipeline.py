@@ -30,47 +30,23 @@
 #         return {"replication_status": replication_info if replication_info else "No replication"}
 import json
 import os
+from typing import List
 from urllib.parse import urlparse
+
+from dataclasses import asdict
 
 import psycopg2
 
-from db_inspector.checks.backup_check import PgBackupCheck
 from db_inspector.checks.base import BaseCheck, Status
-from db_inspector.checks.connection_check import PgConnectionCheck
-from db_inspector.checks.disk_space_check import PgDiskSpaceCheck
-from db_inspector.checks.performance_2_check import PgPerformance2Check
-from db_inspector.checks.performance_check import PgPerformanceCheck
-from db_inspector.checks.replication_check import PgReplicationCheck
-from db_inspector.checks.table_index_check import PgTableIndexCheck
-from db_inspector.checks.wal_check import PgWALCheck
-from db_inspector.checks.replication_slot_check import PgReplicationSlotCheck
-from db_inspector.checks.archive_config_check import PgArchiveConfigCheck
-from db_inspector.checks.database_age_check import PgDatabaseAgeCheck
-from db_inspector.checks.table_age_check import PgTableAgeCheck
-from db_inspector.checks.replica_xlog_delay_check import PgReplicaXlogDelayCheck
+from db_inspector.checks.check_run import SQLCheck, ShellCheck
+from db_inspector.checks.constant import get_check_config
+from db_inspector.config.base import Check
 
 from db_inspector.pipelines.base import PipelineManager
 from db_inspector.reports.html_report import HTMLReportGenerator
 
-# 检查项名称到类的映射字典
-CHECKS_MAP = {
-    "connection_check": PgConnectionCheck,
-    "replication_check": PgReplicationCheck,
-    "performance_check": PgPerformanceCheck,
-    "performance_2_check": PgPerformance2Check,
-    "table_index_check": PgTableIndexCheck,
-    "backup_check": PgBackupCheck,
-    "disk_space_check": PgDiskSpaceCheck,
-    "wal_check": PgWALCheck,
-    "replication_slot_check": PgReplicationSlotCheck,
-    "archive_config_check": PgArchiveConfigCheck,
-    "database_age_check": PgDatabaseAgeCheck,
-    "table_age_check": PgTableAgeCheck,
-    "replica_xlog_delay_check": PgReplicaXlogDelayCheck,
-}
-
 class PostgreSQLPipeline(PipelineManager):
-    def __init__(self,db_name=None,db_params=None, db_uri=None,checks=None,check_names=None, report_format='json',report_dir='report'):
+    def __init__(self,db_name=None,checks_conf:List[Check]=None,db_params=None, db_uri=None,checks=None,check_names=None, report_format='json',report_dir='report'):
         """
         初始化 PostgreSQL 检查管道
         :param db_params: 数据库连接参数（如 host、dbname、user、password）
@@ -82,6 +58,7 @@ class PostgreSQLPipeline(PipelineManager):
         self.db_connection = None
         self.db_uri = db_uri if db_uri else self.parse_db_uri()
         self.checks = checks if checks else []  # 如果没有传入检查项，则使用空列表
+        self.checks_conf = checks_conf if checks_conf else []  # 如果没有传入检查项，则使用空列表
         self.check_names = check_names if check_names else []  # 如果没有传入检查项，则使用空列表
         self.report_format = report_format
         self.report_dir = report_dir
@@ -130,25 +107,7 @@ class PostgreSQLPipeline(PipelineManager):
             print(f"Failed to connect to database: {e}")
             self.db_connection = None
 
-    def add_check(self, check: BaseCheck):
-        """
-        添加检查项到管道
-        :param check: 检查项对象，继承自 BaseCheck
-        """
-        if not isinstance(check, BaseCheck):
-            raise ValueError("check must be an instance of BaseCheck or its subclass")
-        self.checks.append(check)
-    def set_checks(self):
-        """
-        根据传入的检查项名称列表，动态添加检查项到管道中
-        :param check_names: 检查项名称列表（文本数组）
-        """
-        for check_name in self.check_names:
-            if check_name in CHECKS_MAP:
-                check_class = CHECKS_MAP[check_name]
-                self.add_check(check_class())
-            else:
-                print(f"Warning: Check '{check_name}' not recognized")
+    @property
     def execute(self):
         """
         执行所有检查项并返回结果
@@ -161,6 +120,73 @@ class PostgreSQLPipeline(PipelineManager):
         for check in self.checks:
             result = check.run(self.db_connection)
             check_results.append(result)
+
+        # 循环所有的检查项，将检查结果添加到列表中
+        for check_conf in self.checks_conf:
+
+            # 检查检查项配置是否为空
+            if check_conf is None or check_conf.checks is None or len(check_conf.checks) == 0:
+                continue
+
+            # 读取检查项配置文件
+            current_check_config = get_check_config()
+
+            print(f"current_check_config:{current_check_config}")
+
+            if current_check_config is None or current_check_config.check_groups is None or len(current_check_config.check_groups) == 0:
+                print("Failed to load check configuration. Exiting...")
+                return
+
+            print(f"current_check_config.check_groups:{current_check_config.check_groups}")
+
+            if current_check_config.check_groups.get(check_conf.group) is None:
+                print(f"Check group '{check_conf.group}' not found in configuration")
+                continue
+
+
+            for check in check_conf.checks:
+                if current_check_config.check_groups[check_conf.group].checks[check] is None:
+                    print(f"Check '{check}' not found in group '{check_conf.group}'")
+                    continue
+
+                # TODO 执行配置
+                check_item = current_check_config.check_groups[check_conf.group].checks[check]
+
+                if check_item.type == "sql":
+                    # 创建一个 SQL 检查对象
+                    sql_check = SQLCheck(
+                        query=check_item.query,
+                        expected_value=check_item.expected_value,
+                        comparison=check_item.comparison,
+                        check_name=check_item.name
+                    )
+                    # 执行 SQL 检查
+                    result = sql_check.run(self.db_connection)
+                    check_results.append(result)
+                elif check_item.type == "shell":
+                    # 创建一个 Shell 检查对象
+                    shell_check = ShellCheck(
+                        command=check_item.command,
+                        expected_value=check_item.expected_value,
+                        check_name=check_item.name
+                    )
+                    # 执行 Shell 检查
+                    result = shell_check.run()
+                    check_results.append(result)
+                else:
+                    print(f"Warning: Check '{check}' not recognized")
+            #
+            # check_name = check_conf.name
+            # check_params = check_conf.params
+            # if check_name in CHECKS_MAP:
+            #     check_class = CHECKS_MAP[check_name]
+            #     check_instance = check_class(**check_params)
+            #     result = check_instance.run(self.db_connection)
+            #     check_results.append(result)
+            # else:
+            #     print(f"Warning: Check '{check_name}' not recognized")
+
+
 
         # 检查check_result 的正确错误的数量
         successCnt, failureCnt,warningCnt= 0,0,0

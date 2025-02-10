@@ -1,0 +1,73 @@
+{
+  "database_performance": {
+    "name": "Database Performance",
+    "remark": "Checks related to the performance and configuration of the database.",
+    "checks": {
+      "REPLICATION_SLOT_CHECK": {
+        "name": "Replication Slot Check",
+        "type": "sql",
+        "remark": "Check if there are any inactive replication slots in the PostgreSQL database.",
+        "query": "SELECT slot_name, plugin, database FROM pg_replication_slots WHERE active='f'",
+        "expected_value": "",
+        "check_type": "output_contains"
+      },
+      "ARCHIVE_MODE_CHECK": {
+        "name": "Archive Mode Check",
+        "type": "sql",
+        "remark": "Check if database archiving is enabled and configured properly.",
+        "query": "SELECT name, setting FROM pg_settings WHERE name IN ('archive_mode','archive_command')",
+        "expected_value": "on",
+        "check_type": "output_contains"
+      },
+      "DATABASE_AGE_CHECK": {
+        "name": "Database Age Check",
+        "type": "sql",
+        "remark": "Check the remaining age of the database to ensure it's not near expiry.",
+        "query": "SELECT datname, age(datfrozenxid), 2^31 - age(datfrozenxid) AS age_remain FROM pg_database ORDER BY age(datfrozenxid) DESC",
+        "expected_value": "100",
+        "check_type": "threshold",
+        "comparison": "greater_than"
+      },
+      "TABLE_AGE_CHECK": {
+        "name": "Table Age Check",
+        "type": "sql",
+        "remark": "Check the remaining age of the top 5 tables to ensure they are not too old.",
+        "query": "SELECT current_database(), rolname, nspname, relkind, relname, age(relfrozenxid), 2^31 - age(relfrozenxid) AS age_remain FROM pg_authid t1 JOIN pg_class t2 ON t1.oid=t2.relowner JOIN pg_namespace t3 ON t2.relnamespace=t3.oid WHERE t2.relkind IN ('t', 'r') ORDER BY age(relfrozenxid) DESC LIMIT 5",
+        "expected_value": "100MB",
+        "check_type": "threshold",
+        "comparison": "greater_than"
+      },
+      "REPLICA_XLOG_DELAY_CHECK": {
+        "name": "Replica Xlog Delay Check",
+        "type": "sql",
+        "remark": "Check the size of the replica's Xlog delay to monitor replication health.",
+        "query": "SELECT client_addr, pg_xlog_location_diff(pg_current_xlog_location(), replay_location) / 1024 / 1024 FROM pg_stat_replication",
+        "expected_value": "10",
+        "check_type": "threshold",
+        "comparison": "greater_than"
+      }
+    }
+  },
+  "database_performance2": {
+    "name": "Database Performance2",
+    "remark": "Checks related to the performance and configuration of the database.",
+    "checks": {
+      "REPLICATION_SLOT_CHECK2": {
+        "name": "Replication Slot Check2",
+        "type": "sql",
+        "remark": "Check if there are any inactive replication slots in the PostgreSQL database.",
+        "query": "SELECT slot_name, plugin, database FROM pg_replication_slots WHERE active='f'",
+        "expected_value": "",
+        "check_type": "output_contains"
+      },
+      "ARCHIVE_MODE_CHECK2": {
+        "name": "Archive Mode Check2",
+        "type": "sql",
+        "remark": "Check if database archiving is enabled and configured properly.",
+        "query": "SELECT name, setting FROM pg_settings WHERE name IN ('archive_mode','archive_command')",
+        "expected_value": "on",
+        "check_type": "output_contains"
+      }
+    }
+  }
+}
