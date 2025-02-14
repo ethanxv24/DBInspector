@@ -15,6 +15,8 @@ class CheckItemResult:
         self.check_name = check_name
         self.status = status
         self.message = message
+    def __str__(self):
+        return f"{self.check_name}: {self.status} - {self.message}"
 
 class BaseCheck:
     @abstractmethod

@@ -22,7 +22,8 @@ To install DBInspector, use the following command:
 pip install dbinspector# DBInspector
 
 
-./dist/main --config=./config/default_config.toml --report-format=html
+./dist/main --config=./config/default_config.toml --check-config=./config/postgres_check_item.json --report-format=html --output-report-dir=./report
 ./dist/main --config=/Users/astro/PycharmProjects/DBInspector/db_inspector/config/default_config.toml --report-format=html --output-report-dir=/Users/astro/PycharmProjects/DBInspector/dist/report
+
 
 pyinstaller --onefile --add-data "db_inspector/checks:db_inspector/checks" --add-data "db_inspector/config:db_inspector/config" --add-data "db_inspector/connectors:db_inspector/connectors" --add-data "db_inspector/pipelines:db_inspector/pipelines" --add-data "db_inspector/reports:db_inspector/reports" --add-data "db_inspector/utils:db_inspector/utils" --hidden-import=db_inspector.main db_inspector/main.py

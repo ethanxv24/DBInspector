@@ -33,7 +33,7 @@
         "type": "sql",
         "remark": "Check the remaining age of the top 5 tables to ensure they are not too old.",
         "query": "SELECT current_database(), rolname, nspname, relkind, relname, age(relfrozenxid), 2^31 - age(relfrozenxid) AS age_remain FROM pg_authid t1 JOIN pg_class t2 ON t1.oid=t2.relowner JOIN pg_namespace t3 ON t2.relnamespace=t3.oid WHERE t2.relkind IN ('t', 'r') ORDER BY age(relfrozenxid) DESC LIMIT 5",
-        "expected_value": "100MB",
+        "expected_value": "100",
         "check_type": "threshold",
         "comparison": "greater_than"
       },
