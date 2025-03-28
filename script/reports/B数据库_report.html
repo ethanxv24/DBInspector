@@ -1,0 +1,123 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>MongoDB Inspection Report</title>
+        <meta charset="UTF-8">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+            }
+            h1 {
+                color: #333;
+            }
+            h2 {
+                color: #555;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+            }
+            tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            tr:hover {
+                background-color: #ddd;
+            }
+            .summary-report {
+                border: 2px solid #007BFF;
+                padding: 20px;
+                margin: 20px;
+                border-radius: 5px;
+            }
+            .database-report {
+                border: 2px solid #28a745;
+                padding: 20px;
+                margin: 20px;
+                border-radius: 5px;
+            }
+            .links {
+                margin-bottom: 20px;
+            }
+            .links a {
+                margin-right: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="database-report">
+            <h1>MongoDB Inspection Report</h1>
+            
+            <h2>Database: B数据库</h2>
+            
+            <table border="1">
+                <tr>
+                    <th>Check Item</th>
+                    <th>Status</th>
+                    <th>Actual Result</th>
+                    <th>Expected Result</th>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - MongoDB 版本检查</td>
+                    <td>Passed</td>
+                    <td>8.0.6</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 前 5 大数据库大小检查</td>
+                    <td>Passed</td>
+                    <td>[{'name': 'local', '存储大小': 0.03515625, '数据大小': 0.00629425048828125, '索引大小': 0.03515625}, {'name': 'config', '存储大小': 0.0234375, '数据大小': 0.0001888275146484375, '索引大小': 0.046875}, {'name': 'newdb', '存储大小': 0.0390625, '数据大小': 9.72747802734375e-05, '索引大小': 0.0390625}, {'name': 'admin', '存储大小': 0.01953125, '数据大小': 5.626678466796875e-05, '索引大小': 0.01953125}]</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 集合统计信息检查</td>
+                    <td>Error</td>
+                    <td>not running with --replSet, full error: {'ok': 0.0, 'errmsg': 'not running with --replSet', 'code': 76, 'codeName': 'NoReplicationEnabled'}</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 服务器运行时间检查</td>
+                    <td>Passed</td>
+                    <td>20376.0</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 内存使用情况检查</td>
+                    <td>Passed</td>
+                    <td>{'bits': 64, 'resident': 211, 'virtual': 3621, 'supported': True, 'secureAllocByteCount': 0, 'secureAllocBytesInPages': 0}</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 操作计数器检查</td>
+                    <td>Passed</td>
+                    <td>{'insert': 0, 'query': 67, 'update': 4, 'delete': 39, 'getmore': 0, 'command': 5362}</td>
+                    <td></td>
+                </tr>
+                
+                <tr>
+                    <td>B数据库 - 连接数检查</td>
+                    <td>Passed</td>
+                    <td>{'current': 13, 'available': 838847, 'totalCreated': 176, 'rejected': 0, 'active': 6, 'threaded': 13, 'exhaustIsMaster': 0, 'exhaustHello': 3, 'awaitingTopologyChanges': 5, 'loadBalanced': 0}</td>
+                    <td></td>
+                </tr>
+                
+            </table>
+        </div>
+    </body>
+    </html>
+    

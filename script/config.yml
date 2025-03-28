@@ -1,0 +1,25 @@
+general:
+  log_level: "info"
+  log_file: "db_inspector.log"
+  log_format: "text"
+  default_report_dir: "reports"
+  checks:
+    - group: "database_performance"
+      checks:
+        - "MONGO_VERSION_CHECK"
+    - group: "database_performance2"
+      checks:
+        - "MONGO_VERSION_CHECK"
+
+databases:
+  - name: "A数据库"
+    uri: "mongodb://127.0.0.1:27017"
+    checks:
+      - group: "database_performance"
+        checks:
+          - "MONGO_VERSION_CHECK"
+      - group: "database_performance2"
+
+  - name: "B数据库"
+    uri: "mongodb://127.0.0.1:27017"
+    checks: []

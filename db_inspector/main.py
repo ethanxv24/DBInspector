@@ -16,22 +16,17 @@ from db_inspector.reports.html_report import SummaryReportGenerator
 @click.option('--report-format', type=click.Choice(['json', 'html'], case_sensitive=False), default='json', help="Format of the generated report")
 @click.option('--output-report-dir',type=click.Path(exists=True, readable=True),default='report', help="Path to the directory where the report will be saved")
 def main(config,check_config, report_format,output_report_dir):
-    # 配置文件路径
-    #config_file_path = './config/default_config.toml'
-
-    # 加载配置文件
+    # 1. 加载配置文件
     config = load_config_from_yml(config)
     if config is None:
         print("Failed to load configuration. Exiting...")
         return
 
-    # 读取检查项配置文件
+    # 2. 读取检查项配置文件
     checkConf = load_config_from_json(check_config)
     if checkConf is None:
         print("Failed to load check configuration. Exiting...")
         return
-
-
     # 设置全局检查配置
     set_check_config(checkConf)
 
