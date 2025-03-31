@@ -414,14 +414,9 @@ def perform_checks(db_name, client, check_groups, checks_to_run):
 def format_result(result):
     import json
     try:
-        # 尝试将结果解析为 JSON 并格式化
-       # parsed_result = json.loads(result)
         formatted_result = json.dumps(result,ensure_ascii=False, indent=4)
-        print(formatted_result)
     except (TypeError, json.JSONDecodeError):
-        # 如果无法解析为 JSON，则直接返回原始结果
         formatted_result = result
-
 
     return formatted_result
 
