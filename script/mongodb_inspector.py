@@ -1,22 +1,19 @@
-import yaml
-import json
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from jinja2 import Template
+from datetime import datetime
 import os
-import argparse  # 导入argparse库
-
-
-#  <!--{% set db_results = [result for result in results.items() if db_config['name'] in result[0]] %}-->
 
 ''' readme
     MongoDB Inspection Report
     
     1. 使用方法 python3 环境 安装特定依赖
-        pip install jinja2 argparse pymongo
+        pip install jinja2==3.1.4 pymongo==4.11.3
     2. 设置数据库执行配置
+        [CONFIG]配置
+    3. 执行
+        python3 ./mongodb_inspector.py
 '''
-
 
 
 '''
@@ -149,7 +146,7 @@ DETAIL_HTML_TEMPLATE= '''
                     <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
                         <td>{{ name }}</td>
                         <td>{{ result.status }}</td>
-                        <td>{{ result.actual_result }}</td>
+                        <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
                         <td>{{ result.expected_result }}</td>
                     </tr>
                     {% endfor %}
@@ -159,7 +156,7 @@ DETAIL_HTML_TEMPLATE= '''
         </div>
     </body>
     </html>
-    '''
+'''
 
 # 汇总报告模板
 SUMMARY_HTML_TEMPLATE= '''
@@ -253,16 +250,18 @@ SUMMARY_HTML_TEMPLATE= '''
                 <h3>错误检查项详情</h3>
                 <table border="1">
                     <tr>
+                        <th>Check Group</th>
                         <th>Check Item</th>
                         <th>Status</th>
                         <th>Actual Result</th>
                         <th>Expected Result</th>
                     </tr>
-                    {% for name, result in db_results if result.status == 'Error' %}
+                    {% for name,result in db_results if result.status == 'Error' %}
                     <tr>
-                        <td>{{ name }}</td>
+                        <td>{{ result.check_group }}</td>
+                        <td>{{ result.name }}</td>
                         <td>{{ result.status }}</td>
-                        <td>{{ result.actual_result }}</td>
+                        <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
                         <td>{{ result.expected_result }}</td>
                     </tr>
                     {% endfor %}
@@ -296,7 +295,7 @@ class CheckItem:
         self.expected_value = expected_value
         self.check_type = check_type
 
-    def execute(self, client):
+    def execute(self, client,db_name,check_group):
         try:
             method = getattr(self, self.exec_func)
             actual_result = method(client)
@@ -316,37 +315,26 @@ class CheckItem:
 
             # 记录结果
             return {
+                'name': self.name,
+                'db_name': db_name,
+                'check_group': check_group,
                 'status': status,
                 'actual_result': actual_result,
                 'expected_result': self.expected_value
             }
         except Exception as e:
             return {
+                'name': self.name,
+                'db_name': db_name,
+                'check_group': check_group,
                 'status': 'Error',
                 'actual_result': str(e),
                 'expected_result': self.expected_value
             }
 
-    '''
-        获取MongoDB版本信息
-        db.version()
-    '''
     def mongodb_version_check(self, client):
         return client.admin.command('serverStatus')['version']
 
-    '''
-    获取数据库列表 及 大小，取top 5
-    show dbs
-    
-    db.getCollectionNames().forEach(c => {
-        const stats = db[c].stats();
-        print(`${c}: 
-          存储大小 = ${(stats.storageSize / 1024 / 1024).toFixed(2)} MB,
-          数据大小 = ${(stats.size / 1024 / 1024).toFixed(2)} MB,
-          索引大小 = ${(stats.totalIndexSize / 1024 / 1024).toFixed(2)} MB
-        `);
-    });
-    '''
     def top_5_databases_size_check(self, client):
         databases = client.list_database_names()
         database_sizes = []
@@ -409,8 +397,8 @@ class CheckGroup:
     def perform_checks(self, db_name, client):
         results = {}
         for check in self.checks:
-            result = check.execute(client)
-            results[f"{db_name} - {check.name}"] = result
+            result = check.execute(client,db_name,self.name)
+            results[f"{check.name}"] = result
         return results
 
 # 执行检查
@@ -422,13 +410,34 @@ def perform_checks(db_name, client, check_groups, checks_to_run):
             results_by_group[check_group_name] = group_results
     return results_by_group
 
+# 定义格式化 JSON 结果的函数
+def format_result(result):
+    import json
+    try:
+        # 尝试将结果解析为 JSON 并格式化
+       # parsed_result = json.loads(result)
+        formatted_result = json.dumps(result,ensure_ascii=False, indent=4)
+        print(formatted_result)
+    except (TypeError, json.JSONDecodeError):
+        # 如果无法解析为 JSON，则直接返回原始结果
+        formatted_result = result
+
+
+    return formatted_result
+
 # 生成详细HTML报告
 def generate_html_report(results_by_group, output_path, db_name):
+    print(f"    正在为 {db_name} 生成详细报告，路径为 {output_path}")  # 修改为中文
     # 统计成功项数、错误项数以及总项数
     total_checks = sum(len(results) for results in results_by_group.values())
     passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
     failed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Failed')
     error_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Error')
+
+    # 格式化实际结果
+    for group_results in results_by_group.values():
+        for result in group_results.values():
+            result['actual_result'] = format_result(result['actual_result'])
 
     template = Template(DETAIL_HTML_TEMPLATE)
     html_content = template.render(results_by_group=results_by_group, db_name=db_name, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
@@ -437,23 +446,27 @@ def generate_html_report(results_by_group, output_path, db_name):
 
 # 生成汇总HTML报告
 def generate_summary_html_report(results, output_path, config):
-    # 调试输出，打印 results 的内容
-    print("Results in generate_summary_html_report:", results)
+    print(f"    正在生成汇总报告，路径为 {output_path}")
 
     # 获取数据库名和文件相对地址链接
     db_links = {db_config['name']: f"{db_config['name'].replace(' ', '_')}_report.html" for db_config in config['databases']}
 
     # 统计成功项数、错误项数以及总项数
     total_checks = len(results)
-    passed_checks = sum(1 for result in results.values() if result['status'] == 'Passed')
-    failed_checks = sum(1 for result in results.values() if result['status'] == 'Failed')
-    error_checks = sum(1 for result in results.values() if result['status'] == 'Error')  # 新增统计Error项数
+    passed_checks = sum(1 for k,result in results if result['status'] == 'Passed')
+    failed_checks = sum(1 for k,result in results if result['status'] == 'Failed')
+    error_checks = sum(1 for k,result in results if result['status'] == 'Error')  # 新增统计Error项数
 
     # 按数据库分组统计
     db_results = {}
     for db_config in config['databases']:
         db_name = db_config['name']
-        db_results[db_name] = {name: result for name, result in results.items() if db_name in name}
+        db_results[db_name]= {f'{name}_{result["check_group"]}': result for name, result in results if db_name == result['db_name']}
+
+    # 格式化实际结果
+    for db_name, results in db_results.items():
+        for result in results.values():
+            result['actual_result'] = format_result(result['actual_result'])
 
     template = Template(SUMMARY_HTML_TEMPLATE)
     html_content = template.render(results=results, db_links=db_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks, config=config, db_results=db_results)  # 更新模板渲染参数
@@ -462,21 +475,27 @@ def generate_summary_html_report(results, output_path, config):
 
 # 主函数
 def main():
-    # 定义命令行参数
-    parser = argparse.ArgumentParser(description='MongoDB Inspector Script')
-    parser.add_argument('--output-report-dir', type=str, default='./reports/', help='Path to the output HTML report')
-    args = parser.parse_args()
-
-    output_report_dir = args.output_report_dir
-
-    # 检查并创建输出目录
-    if not os.path.exists(output_report_dir):
-        os.makedirs(output_report_dir)
+    # 记录开始时间
+    start_time = datetime.now()
+    print(f"脚本开始执行时间: {start_time}")  # 新增输出开始时间
 
     # 加载配置文件
     config = CONFIG
 
-    all_results = {}
+    # 检查并创建输出目录
+    output_report_dir = CONFIG['outputReportDir']
+
+    # 获取当前时间并创建一个新的子目录
+    current_date = start_time.strftime("reports_%Y%m%d%H%M%S")
+    new_output_report_dir = os.path.join(output_report_dir, current_date)
+
+    if not os.path.exists(new_output_report_dir):
+        os.makedirs(new_output_report_dir)
+        print(f"    已创建新的输出报告目录: {new_output_report_dir}")  # 修改为中文
+    else:
+        print(f"    输出报告目录已存在: {new_output_report_dir}")  # 修改为中文
+
+    all_results = []
 
     for db_config in config['databases']:
         uri = db_config['uri']
@@ -484,22 +503,25 @@ def main():
         client = MongoClient(uri, server_api=ServerApi('1'))
 
         checks_to_run = check_groups.keys()
-
         db_results_by_group = perform_checks(db_name, client, check_groups, checks_to_run)
 
         # 生成每个数据库的详细报告
-        db_report_path = os.path.join(output_report_dir, f'{db_name.replace(" ", "_")}_report.html')
+        db_report_path = os.path.join(new_output_report_dir, f'{db_name.replace(" ", "_")}_report.html')
         generate_html_report(db_results_by_group, db_report_path, db_name)
 
         # 汇总结果
         for group_results in db_results_by_group.values():
-            all_results.update(group_results)
+            all_results.extend(group_results.items())
 
         client.close()
 
     # 生成汇总报告
-    generate_summary_html_report(all_results, os.path.join(output_report_dir, 'summary_report.html'), config)
+    generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'), config)
 
+    # 记录结束时间
+    end_time = datetime.now()
+    execution_time = end_time - start_time
+    print(f"脚本执行结束,结束时间:{end_time},总耗时: {execution_time}")
 
 # 初始化检查组
 check_groups = {
@@ -520,6 +542,7 @@ check_groups = {
 
 # 添加配置
 CONFIG = {
+    'outputReportDir': './reports/',
     'databases': [
         {
             'name': "A数据库",
