@@ -2,7 +2,7 @@
     <!DOCTYPE html>
     <html>
     <head>
-        <title>MongoDB Inspection Report</title>
+        <title>MongoDB Inspection Summary Report</title>
         <meta charset="UTF-8">
         <style>
             body {
@@ -27,9 +27,6 @@
             th {
                 background-color: #f2f2f2;
             }
-            tr:nth-child(even) {
-                background-color: #f9f9f9;
-            }
             tr:hover {
                 background-color: #ddd;
             }
@@ -51,152 +48,98 @@
             .links a {
                 margin-right: 10px;
             }
+            .stats {
+                margin-bottom: 20px;
+            }
+            .passed {
+                color: green;
+                background-color: #e6ffe6; /* 新增背景颜色 */
+            }
+            .failed {
+                color: red;
+                background-color: #ffe6e6; /* 新增背景颜色 */
+            }
+            .error {
+                color: orange;
+                background-color: #fff9db; /* 新增背景颜色 */
+            }
         </style>
     </head>
     <body>
         <div class="summary-report">
             <h1>MongoDB Inspection Summary Report</h1>
+            <div class="stats">
+                <p>总检查项数: 14 | 成功项数: <span class="passed">12</span> | 错误项数: <span class="failed">0</span> | 错误状态项数: <span class="error">2</span></p>  <!-- 新增显示Error项数 -->
+            </div>
             
-            <div class="links">
+            <div class="database-report">
+                <h2>A数据库</h2>
+                <div class="links">
+                    <a href="A数据库_report.html">查看详细报告</a>
+                </div>
+                <div class="stats">
+                    
+                    
+                    
+                    
+                    
+                    <p>总检查项数: 7 | 成功项数: <span class="passed">6</span> | 错误项数: <span class="failed">0</span> | 错误状态项数: <span class="error">1</span></p>
+                </div>
                 
-                <a href="A数据库_-_MongoDB_版本检查_report.html">A数据库 - MongoDB 版本检查</a>
-                
-                <a href="A数据库_-_前_5_大数据库大小检查_report.html">A数据库 - 前 5 大数据库大小检查</a>
-                
-                <a href="A数据库_-_集合统计信息检查_report.html">A数据库 - 集合统计信息检查</a>
-                
-                <a href="A数据库_-_服务器运行时间检查_report.html">A数据库 - 服务器运行时间检查</a>
-                
-                <a href="A数据库_-_内存使用情况检查_report.html">A数据库 - 内存使用情况检查</a>
-                
-                <a href="A数据库_-_操作计数器检查_report.html">A数据库 - 操作计数器检查</a>
-                
-                <a href="A数据库_-_连接数检查_report.html">A数据库 - 连接数检查</a>
-                
-                <a href="B数据库_-_MongoDB_版本检查_report.html">B数据库 - MongoDB 版本检查</a>
-                
-                <a href="B数据库_-_前_5_大数据库大小检查_report.html">B数据库 - 前 5 大数据库大小检查</a>
-                
-                <a href="B数据库_-_集合统计信息检查_report.html">B数据库 - 集合统计信息检查</a>
-                
-                <a href="B数据库_-_服务器运行时间检查_report.html">B数据库 - 服务器运行时间检查</a>
-                
-                <a href="B数据库_-_内存使用情况检查_report.html">B数据库 - 内存使用情况检查</a>
-                
-                <a href="B数据库_-_操作计数器检查_report.html">B数据库 - 操作计数器检查</a>
-                
-                <a href="B数据库_-_连接数检查_report.html">B数据库 - 连接数检查</a>
+                <h3>错误检查项详情</h3>
+                <table border="1">
+                    <tr>
+                        <th>Check Item</th>
+                        <th>Status</th>
+                        <th>Actual Result</th>
+                        <th>Expected Result</th>
+                    </tr>
+                    
+                    <tr>
+                        <td>A数据库 - 集合统计信息检查</td>
+                        <td>Error</td>
+                        <td>not running with --replSet, full error: {'ok': 0.0, 'errmsg': 'not running with --replSet', 'code': 76, 'codeName': 'NoReplicationEnabled'}</td>
+                        <td></td>
+                    </tr>
+                    
+                </table>
                 
             </div>
             
-            <table border="1">
-                <tr>
-                    <th>Check Item</th>
-                    <th>Status</th>
-                    <th>Actual Result</th>
-                    <th>Expected Result</th>
-                </tr>
+            <div class="database-report">
+                <h2>B数据库</h2>
+                <div class="links">
+                    <a href="B数据库_report.html">查看详细报告</a>
+                </div>
+                <div class="stats">
+                    
+                    
+                    
+                    
+                    
+                    <p>总检查项数: 7 | 成功项数: <span class="passed">6</span> | 错误项数: <span class="failed">0</span> | 错误状态项数: <span class="error">1</span></p>
+                </div>
                 
-                <tr>
-                    <td>A数据库 - MongoDB 版本检查</td>
-                    <td>Passed</td>
-                    <td>8.0.6</td>
-                    <td></td>
-                </tr>
+                <h3>错误检查项详情</h3>
+                <table border="1">
+                    <tr>
+                        <th>Check Item</th>
+                        <th>Status</th>
+                        <th>Actual Result</th>
+                        <th>Expected Result</th>
+                    </tr>
+                    
+                    <tr>
+                        <td>B数据库 - 集合统计信息检查</td>
+                        <td>Error</td>
+                        <td>not running with --replSet, full error: {'ok': 0.0, 'errmsg': 'not running with --replSet', 'code': 76, 'codeName': 'NoReplicationEnabled'}</td>
+                        <td></td>
+                    </tr>
+                    
+                </table>
                 
-                <tr>
-                    <td>A数据库 - 前 5 大数据库大小检查</td>
-                    <td>Passed</td>
-                    <td>[{'name': 'local', '存储大小': 0.03515625, '数据大小': 0.00629425048828125, '索引大小': 0.03515625}, {'name': 'config', '存储大小': 0.0234375, '数据大小': 0.0001888275146484375, '索引大小': 0.046875}, {'name': 'newdb', '存储大小': 0.0390625, '数据大小': 9.72747802734375e-05, '索引大小': 0.0390625}, {'name': 'admin', '存储大小': 0.01953125, '数据大小': 5.626678466796875e-05, '索引大小': 0.01953125}]</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>A数据库 - 集合统计信息检查</td>
-                    <td>Error</td>
-                    <td>not running with --replSet, full error: {'ok': 0.0, 'errmsg': 'not running with --replSet', 'code': 76, 'codeName': 'NoReplicationEnabled'}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>A数据库 - 服务器运行时间检查</td>
-                    <td>Passed</td>
-                    <td>20376.0</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>A数据库 - 内存使用情况检查</td>
-                    <td>Passed</td>
-                    <td>{'bits': 64, 'resident': 211, 'virtual': 3621, 'supported': True, 'secureAllocByteCount': 0, 'secureAllocBytesInPages': 0}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>A数据库 - 操作计数器检查</td>
-                    <td>Passed</td>
-                    <td>{'insert': 0, 'query': 67, 'update': 4, 'delete': 39, 'getmore': 0, 'command': 5338}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>A数据库 - 连接数检查</td>
-                    <td>Passed</td>
-                    <td>{'current': 12, 'available': 838848, 'totalCreated': 173, 'rejected': 0, 'active': 5, 'threaded': 12, 'exhaustIsMaster': 0, 'exhaustHello': 3, 'awaitingTopologyChanges': 4, 'loadBalanced': 0}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - MongoDB 版本检查</td>
-                    <td>Passed</td>
-                    <td>8.0.6</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 前 5 大数据库大小检查</td>
-                    <td>Passed</td>
-                    <td>[{'name': 'local', '存储大小': 0.03515625, '数据大小': 0.00629425048828125, '索引大小': 0.03515625}, {'name': 'config', '存储大小': 0.0234375, '数据大小': 0.0001888275146484375, '索引大小': 0.046875}, {'name': 'newdb', '存储大小': 0.0390625, '数据大小': 9.72747802734375e-05, '索引大小': 0.0390625}, {'name': 'admin', '存储大小': 0.01953125, '数据大小': 5.626678466796875e-05, '索引大小': 0.01953125}]</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 集合统计信息检查</td>
-                    <td>Error</td>
-                    <td>not running with --replSet, full error: {'ok': 0.0, 'errmsg': 'not running with --replSet', 'code': 76, 'codeName': 'NoReplicationEnabled'}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 服务器运行时间检查</td>
-                    <td>Passed</td>
-                    <td>20376.0</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 内存使用情况检查</td>
-                    <td>Passed</td>
-                    <td>{'bits': 64, 'resident': 211, 'virtual': 3621, 'supported': True, 'secureAllocByteCount': 0, 'secureAllocBytesInPages': 0}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 操作计数器检查</td>
-                    <td>Passed</td>
-                    <td>{'insert': 0, 'query': 67, 'update': 4, 'delete': 39, 'getmore': 0, 'command': 5362}</td>
-                    <td></td>
-                </tr>
-                
-                <tr>
-                    <td>B数据库 - 连接数检查</td>
-                    <td>Passed</td>
-                    <td>{'current': 13, 'available': 838847, 'totalCreated': 176, 'rejected': 0, 'active': 6, 'threaded': 13, 'exhaustIsMaster': 0, 'exhaustHello': 3, 'awaitingTopologyChanges': 5, 'loadBalanced': 0}</td>
-                    <td></td>
-                </tr>
-                
-            </table>
+            </div>
+            
         </div>
     </body>
     </html>
-    
