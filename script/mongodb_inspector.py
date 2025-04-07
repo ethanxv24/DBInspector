@@ -287,13 +287,13 @@ class CheckItem:
         "CONNECTIONS_CHECK": "connections_check"
     }
 
-    def __init__(self, name,expected_value, check_type,exec_func,remark):
+    def __init__(self, name, expected_value, check_type, exec_func, remark, is_cloud_check = None):
         self.name = name
-        #self.query = query
         self.remark = remark
         self.exec_func = self.METHOD_MAP.get(exec_func)
         self.expected_value = expected_value
         self.check_type = check_type
+        self.is_cloud_check = is_cloud_check  # 新增字段
 
     def execute(self, client,db_name,check_group):
         try:
@@ -402,11 +402,17 @@ class CheckGroup:
         return results
 
 # 执行检查
-def perform_checks(db_name, client, check_groups, checks_to_run):
+def perform_checks(db_name, client, check_groups, checks_to_run, is_cloud):
     results_by_group = {}
     for check_group_name, check_group in check_groups.items():
         if check_group_name in checks_to_run:
-            group_results = check_group.perform_checks(db_name, client)
+            group_results = {}
+            for check in check_group.checks:
+                if (check.is_cloud_check is None) or \
+                   (check.is_cloud_check  and is_cloud) or \
+                   (not check.is_cloud_check  and not is_cloud):
+                    result = check.execute(client, db_name, check_group_name)
+                    group_results[f"{check.name}"] = result
             results_by_group[check_group_name] = group_results
     return results_by_group
 
@@ -495,10 +501,11 @@ def main():
     for db_config in config['databases']:
         uri = db_config['uri']
         db_name = db_config['name']
+        is_cloud = db_config['is_cloud']  # 获取是否为云数据库的配置
         client = MongoClient(uri, server_api=ServerApi('1'))
 
         checks_to_run = check_groups.keys()
-        db_results_by_group = perform_checks(db_name, client, check_groups, checks_to_run)
+        db_results_by_group = perform_checks(db_name, client, check_groups, checks_to_run, is_cloud)  # 传递 is_cloud 参数
 
         # 生成每个数据库的详细报告
         db_report_path = os.path.join(new_output_report_dir, f'{db_name.replace(" ", "_")}_report.html')
@@ -521,17 +528,17 @@ def main():
 # 初始化检查组
 check_groups = {
     "database_performance":  CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
-        CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。"),
-        CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。"),
-        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。"),
-        CheckItem("服务器运行时间检查", "", "output_contains","SERVER_UPTIME_CHECK","检查 MongoDB 服务器的运行时间。"),
-        CheckItem("内存使用情况检查",  "", "output_contains","MEMORY_USAGE_CHECK","检查 MongoDB 服务器的内存使用情况。"),
-        CheckItem("操作计数器检查",  "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。"),
-        CheckItem("连接数检查", "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。")
+        CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", is_cloud_check=None),
+        CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", is_cloud_check=None),
+        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", is_cloud_check=None),
+        CheckItem("服务器运行时间检查", "", "output_contains","SERVER_UPTIME_CHECK","检查 MongoDB 服务器的运行时间。", is_cloud_check=None),
+        CheckItem("内存使用情况检查",  "", "output_contains","MEMORY_USAGE_CHECK","检查 MongoDB 服务器的内存使用情况。", is_cloud_check=None),
+        CheckItem("操作计数器检查",  "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", is_cloud_check=None),
+        CheckItem("连接数检查", "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", is_cloud_check=False)
     ]),
     "database_performance2": CheckGroup("数据库性能2", "与数据库性能和配置相关的检查。", [
-        CheckItem("操作计数器检查", "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。"),
-        CheckItem("连接数检查",  "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。")
+        CheckItem("操作计数器检查", "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", is_cloud_check=True),
+        CheckItem("连接数检查",  "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", is_cloud_check=True)
     ])
 }
 
@@ -542,10 +549,12 @@ CONFIG = {
         {
             'name': "A数据库",
             'uri': "mongodb://127.0.0.1:27017",
+            'is_cloud': False  # 是否云数据库
         },
         {
             'name': "B数据库",
             'uri': "mongodb://127.0.0.1:27017",
+            'is_cloud': True
         }
     ]
 }
