@@ -306,11 +306,14 @@ class CheckItem:
             elif self.check_type == 'threshold':
                 actual_value = float(actual_result)
                 expected_value = float(self.expected_value)
-                # 补充阈值比较逻辑（示例：默认大于）
-                status = 'Passed' if actual_value > expected_value else 'Failed'
+                # if comparison == 'greater_than':
+                #     status = 'Passed' if actual_value > expected_value else 'Failed'
+                # else:
+                #     status = 'Failed'
             else:
                 status = 'Failed'
 
+            # 记录结果
             return {
                 'name': self.name,
                 'db_name': db_name,
@@ -509,6 +512,8 @@ def main():
         uri = db_config['uri']
         db_name = db_config['name']
         is_cloud = db_config['is_cloud']  # 获取是否为云数据库的配置
+
+        checks_to_run = check_groups.keys()
         with MongoClient(uri, server_api=ServerApi('1')) as client:
             db_results_by_group = perform_checks(db_name, client, check_groups, checks_to_run, is_cloud)
 
@@ -530,10 +535,10 @@ def main():
 
 # 初始化检查组
 check_groups = {
-    "database_performance": CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
+    "database_performance":  CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
         CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", None),
         CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", None),
-        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", True),  # 明确设置云环境检查
+        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", None),
         CheckItem("服务器运行时间检查", "", "output_contains","SERVER_UPTIME_CHECK","检查 MongoDB 服务器的运行时间。", None),
         CheckItem("内存使用情况检查",  "", "output_contains","MEMORY_USAGE_CHECK","检查 MongoDB 服务器的内存使用情况。", None),
         CheckItem("操作计数器检查",  "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", None),
