@@ -11,7 +11,6 @@ from mysql.connector import Error
     
     1. 使用方法 python3 环境 安装特定依赖
         pip install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python
-          pip install mysql-connector-python
     2. 设置数据库执行配置
         [CONFIG]配置
     3. 执行

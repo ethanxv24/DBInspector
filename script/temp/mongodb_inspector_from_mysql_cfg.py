@@ -10,8 +10,7 @@ from mysql.connector import Error
     MongoDB Inspection Report
     
     1. 使用方法 python3 环境 安装特定依赖
-        pip install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python==9.3.0
-          pip install mysql-connector-python
+        pip install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python==8.0.26
     2. 设置数据库执行配置
         [CONFIG]配置
     3. 执行
@@ -57,66 +56,7 @@ a.members.forEach(function(e){print(e.name, e.stateStr)})
 '''
 
 # 数据源sql
-DBLINKS_SQL = '''
-    SELECT
-    instance_name,
-    environment,
-    role,
-        mode,
-    concat( 'mongodb://', admin_user, ':', admin_password, '@', GROUP_CONCAT( ip, ':', PORT SEPARATOR ',' ), '/admin' ) data_path 
-FROM
-    (
-    SELECT
-        instance_name,
-        admin_user,
-        admin_password,
-                mode,
-        role,
-                environment,
-        node_name,
-        ip,
-    PORT 
-    FROM
-        v_mongodb_info 
-    WHERE
-        role IN ( 'Primary', 'Master' ) 
-        AND ((
-                create_type = '云服务' 
-                AND MODE = 'Sharding' 
-                AND ip IS NOT NULL 
-                AND `PORT` IS NOT NULL 
-                ) 
-        OR ( create_type = '云服务' AND MODE = 'ReplicaSet' ))) AS all_data 
-GROUP BY
-    instance_name UNION
-SELECT
-    instance_name,
-    environment,
-    role,
-        mode,
-    concat( 'mongodb://', admin_user, ':', admin_password, '@', GROUP_CONCAT( ip, ':', PORT SEPARATOR ',' ), '/admin' ) 
-FROM
-    (
-    SELECT
-        instance_name,
-        admin_user,
-        admin_password,
-                mode,
-        role,
-        environment,
-                group_id,
-        ip,
-    PORT 
-    FROM
-        v_mongodb_info 
-    WHERE
-       create_type = '自建' 
-        AND role IN ( 'Primary', 'Master' ) 
-    ) AS all_data 
-GROUP BY
-    instance_name,group_id
-        order by instance_name,role,mode;
-'''
+DBLINKS_SQL = '''select * from my_table;'''
 
 # 详细报告模板
 DETAIL_HTML_TEMPLATE= '''
@@ -188,7 +128,7 @@ DETAIL_HTML_TEMPLATE= '''
     </head>
     <body>
         <div class="database-report">
-            <h1>MongoDB Inspection Report for {{ db_name }}</h1>
+            <h1>MongoDB Inspection Report for {{ db_name }} env: {{environment}}</h1>
             <div class="links">
                 <a href="summary_report.html">返回汇总页面</a>
             </div>
@@ -297,14 +237,14 @@ SUMMARY_HTML_TEMPLATE= '''
             <div class="stats">
                 <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
             </div>
-            {% for db_config in config['databases'] %}
+            {% for db_link in db_links %}
             <div class="database-report">
-                <h2>{{ db_config['name'] }}</h2>
+                <h2>{{ db_link.instance_name }} env: {{ db_link.environment }}</h2>
                 <div class="links">
-                    <a href="{{ db_links[db_config['name']] }}">查看详细报告</a>
+                    <a href="{{ report_links[db_link.instance_name_env] }}">查看详细报告</a>
                 </div>
                 <div class="stats">
-                    {% set db_results = db_results[db_config['name']].items() %}
+                    {% set db_results = db_results[db_link.instance_name_env].items() %}
                     {% set db_total_checks = db_results|length %}
                     {% set db_passed_checks = db_results|selectattr('1.status', 'equalto', 'Passed')|list|length %}
                     {% set db_failed_checks = db_results|selectattr('1.status', 'equalto', 'Failed')|list|length %}
@@ -339,6 +279,33 @@ SUMMARY_HTML_TEMPLATE= '''
     </html>
 '''
 
+# 定义数据库连接结构体类
+class DatabaseLink:
+    def __init__(self, id, instance_name, environment, role_mode, data_path):
+        self.id = id
+        self.instance_name_env = instance_name+"_"+environment
+        self.instance_name = instance_name
+        self.environment = environment
+        self.role_mode = role_mode
+        self.data_path = data_path
+
+    def __str__(self):
+        return f"ID: {self.id}, Instance Name: {self.instance_name}, Environment: {self.environment}, Role Mode: {self.role_mode}, Data Path: {self.data_path}"
+
+    def id(self):
+        return self.id
+    def instance_name_env(self):
+        return self.instance_name_env
+    def instance_name(self):
+        return self.instance_name
+    def environment(self):
+        return self.environment
+    def role_mode(self):
+        return self.role_mode
+    def data_path(self):
+        return self.data_path
+
+
 # 定义检查项类
 class CheckItem:
     # 定义检查项名称到方法名的映射
@@ -352,15 +319,15 @@ class CheckItem:
         "CONNECTIONS_CHECK": "check_connections"
     }
 
-    def __init__(self, name, expected_value, check_type, exec_func, remark, is_cloud_check=None):
+    def __init__(self, name, expected_value, check_type, exec_func, remark, role_mode=None):
         self.name = name
         self.remark = remark
         self.exec_func = self.METHOD_MAP.get(exec_func)
         self.expected_value = expected_value
         self.check_type = check_type
-        self.is_cloud_check = is_cloud_check  # 是否云数据库的检查项 None: 云和非云数据库都需要的检查项 True: 云数据库检查项 False: 非云数据库检查项
+        self.role_mode = role_mode  # 运行模式 Primary_Sharding:分片节点 Primary_ReplicaSet:主从，三个节点 Primary_Single:归档节点 Master_Sharding:mongos节点
 
-    def execute(self, client, db_name, check_group):
+    def execute(self, client, db_link, check_group):
         try:
             method = getattr(self, self.exec_func)
             actual_result = method(client)
@@ -381,7 +348,11 @@ class CheckItem:
             # 记录结果
             return {
                 'name': self.name,
-                'db_name': db_name,
+                'db_name': db_link.instance_name,
+                'environment':db_link.environment,
+                'instance_name_env':db_link.instance_name_env,
+                'role_mode':db_link.role_mode,
+                'data_path':db_link.data_path,
                 'check_group': check_group,
                 'status': status,
                 'actual_result': actual_result,
@@ -390,7 +361,11 @@ class CheckItem:
         except Exception as e:
             return {
                 'name': self.name,
-                'db_name': db_name,
+                'db_name': db_link.instance_name,
+                'environment':db_link.environment,
+                'instance_name_env':db_link.instance_name_env,
+                'role_mode':db_link.role_mode,
+                'data_path':db_link.data_path,
                 'check_group': check_group,
                 'status': 'Error',
                 'actual_result': str(e),
@@ -469,16 +444,15 @@ class CheckGroup:
         return results
 
 # 执行检查
-def perform_checks(db_name, client, check_groups, checks_to_run, is_cloud):
+def perform_checks(db_link, client, check_groups, checks_to_run):
     results_by_group = {}
     for check_group_name, check_group in check_groups.items():
         if check_group_name in checks_to_run:
             group_results = {}
             for check in check_group.checks:
-                if (check.is_cloud_check is None) or \
-                   (check.is_cloud_check and is_cloud) or \
-                   (not check.is_cloud_check and not is_cloud):
-                    result = check.execute(client, db_name, check_group_name)
+                if (check.role_mode is None) or \
+                   (check.role_mode ==db_link.role_mode):
+                    result = check.execute(client, db_link, check_group_name)
                     group_results[f"{check.name}"] = result
             results_by_group[check_group_name] = group_results
     return results_by_group
@@ -494,8 +468,9 @@ def format_result(result):
     return formatted_result
 
 # 生成详细HTML报告
-def generate_html_report(results_by_group, output_path, db_name):
-    print(f"    正在为 {db_name} 生成详细报告，路径为 {output_path}")  # 修改为中文
+def generate_html_report(results_by_group, output_path, db_link):
+
+    print(f"    正在为 {db_link.instance_name}_{db_link.environment} 生成详细报告，路径为 {output_path}")  # 修改为中文
     # 统计成功项数、错误项数以及总项数
     total_checks = sum(len(results) for results in results_by_group.values())
     passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
@@ -511,16 +486,16 @@ def generate_html_report(results_by_group, output_path, db_name):
     filtered_results_by_group = {k: v for k, v in results_by_group.items() if v}
 
     template = Template(DETAIL_HTML_TEMPLATE)
-    html_content = template.render(results_by_group=filtered_results_by_group, db_name=db_name, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
+    html_content = template.render(results_by_group=filtered_results_by_group, db_name=db_link.instance_name,environment =db_link.environment, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
 # 生成汇总HTML报告
-def generate_summary_html_report(results, output_path, config):
+def generate_summary_html_report(results, output_path, db_links):
     print(f"    正在生成汇总报告，路径为 {output_path}")
 
     # 获取数据库名和文件相对地址链接
-    db_links = {db_config['name']: f"{db_config['name'].replace(' ', '_')}_report.html" for db_config in config['databases']}
+    report_links = {db_link.instance_name_env:f"{db_link.instance_name_env.replace(' ', '_')}_report.html" for db_link in db_links}
 
     # 修正总检查项数统计方式
     total_checks = len([r for r in results if r[1]['status'] in ['Passed', 'Failed', 'Error']])
@@ -532,9 +507,8 @@ def generate_summary_html_report(results, output_path, config):
 
     # 按数据库分组统计
     db_results = {}
-    for db_config in config['databases']:
-        db_name = db_config['name']
-        db_results[db_name] = {f'{name}_{result["check_group"]}': result for name, result in results if db_name == result['db_name']}
+    for db_link in db_links:
+        db_results[db_link.instance_name_env] = {f'{name}_{result["check_group"]}': result for name, result in results if db_link.instance_name_env == result['instance_name_env']}
 
     # 格式化实际结果
     for db_name, results in db_results.items():
@@ -545,7 +519,7 @@ def generate_summary_html_report(results, output_path, config):
     filtered_db_results = {k: v for k, v in db_results.items() if v}
 
     template = Template(SUMMARY_HTML_TEMPLATE)
-    html_content = template.render(results=results, db_links=db_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks, config=config, db_results=filtered_db_results)  # 更新模板渲染参数
+    html_content = template.render(results=results, report_links=report_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks, db_links=db_links, db_results=filtered_db_results)  # 更新模板渲染参数
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
@@ -553,48 +527,53 @@ def generate_summary_html_report(results, output_path, config):
 # 获取数据库链接数据
 def fetch_db_link_data():
     try:
-        # 从MySQL URL中提取连接参数
-        mysql_url = CONFIG['dblink_source']
+        # 从配置中提取MySQL URL
+        mysql_url = CONFIG.get('dblink_source', '')
         if not mysql_url.startswith("mysql://"):
             raise ValueError("Invalid MySQL URL format")
 
-        # 去掉前缀
+        # 去掉前缀并解析URL
         mysql_url = mysql_url[len("mysql://"):]
+        if '@' not in mysql_url or '/' not in mysql_url:
+            raise ValueError("Malformed MySQL URL")
 
-        # 分割用户名、密码、主机和数据库
-        user_password, host_db = mysql_url.split('@')
-        user, password = user_password.split(':')
-        host, database = host_db.split('/')
+        user_password, host_db = mysql_url.split('@', 1)
+        user, password = user_password.split(':', 1)
+        host, database = host_db.split('/', 1)
+        domain, port = host.split(':', 1)
 
-        # 连接到MySQL数据库
-        connection = mysql.connector.connect(
-            host=host,
-            database=database,
-            user=user,
-            password=password
-        )
+        # 数据库连接参数
+        db_config = {
+            'host': domain,
+            'database': database,
+            'user': user,
+            'password': password
+        }
 
-        if connection.is_connected():
-            cursor = connection.cursor(dictionary=True)
-            # 执行SQL查询
-            cursor.execute(DBLINKS_SQL)
-            # 获取查询结果
-            rows = cursor.fetchall()
+        # 使用上下文管理器管理数据库连接和游标
+        with mysql.connector.connect(**db_config) as connection:
+            if not connection.is_connected():
+                raise ConnectionError("Failed to connect to the database")
 
-            # 将查询结果转换为对象数组
-            result_objects = [ResultObject(row['id'], row['name'], row['value']) for row in rows]
+            with connection.cursor(dictionary=True) as cursor:
+                # 执行SQL查询
+                cursor.execute(DBLINKS_SQL)
+                rows = cursor.fetchall()
+                for row in rows:
+                    table_obj = DatabaseLink(row['id'], row['instance_name'], row['environment'], row['role_mode'], row['data_path'])
+                    db_links.append(table_obj)
 
-            # 打印结果
-            for obj in result_objects:
-                print(obj)
+                # 调试模式下打印结果
+                #print(f"Rows:{rows}")
 
+    except (ValueError, KeyError, AttributeError) as e:
+        print(f"Configuration Error: {e}")
     except Error as e:
-        print(f"Error: {e}")
+        print(f"MySQL Error: {e}")
+    except Exception as e:
+        print(f"Unexpected Error: {e}")
     finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
-            print("MySQL connection is closed")
+        print("Database operation completed")
 
 # 主函数
 def main():
@@ -602,11 +581,15 @@ def main():
     start_time = datetime.now()
     print(f"脚本开始执行时间: {start_time}")  # 新增输出开始时间
 
-    # 加载配置文件
-    config = CONFIG
+    # 获取数据库链接数据
+    fetch_db_link_data()
+
+    if not db_links:
+        print("No database links found. Exiting...")
+        return
 
     # 检查并创建输出目录
-    output_report_dir = config['outputReportDir']
+    output_report_dir = CONFIG['outputReportDir']
 
     # 获取当前时间并创建一个新的子目录
     current_date = start_time.strftime("reports_%Y%m%d%H%M%S")
@@ -619,58 +602,58 @@ def main():
         print(f"    输出报告目录已存在: {new_output_report_dir}")  # 修改为中文
 
 
-    # TODO 获取数据库链接数据
-    #databases = fetch_db_link_data()
-
+    #加载所有检查项
+    checks_to_run = check_groups.keys()
 
     all_results = []
 
-    for db_config in config['databases']:
-        uri = db_config['uri']
-        db_name = db_config['name']
-        is_cloud = db_config['is_cloud']  # 获取是否为云数据库的配置
+    for db_link in db_links:
 
-        checks_to_run = check_groups.keys()
-        with MongoClient(uri, server_api=ServerApi('1')) as client:
-            db_results_by_group = perform_checks(db_name, client, check_groups, checks_to_run, is_cloud)
+        with MongoClient(db_link.data_path, server_api=ServerApi('1')) as client:
+            db_results_by_group = perform_checks(db_link, client, check_groups, checks_to_run)
 
         # 生成每个数据库的详细报告
-        db_report_path = os.path.join(new_output_report_dir, f'{db_name.replace(" ", "_")}_report.html')
-        generate_html_report(db_results_by_group, db_report_path, db_name)
+        db_report_path = os.path.join(new_output_report_dir, f'{db_link.instance_name_env.replace(" ", "_")}_report.html')
+        generate_html_report(db_results_by_group, db_report_path, db_link)
 
         # 汇总结果
         for group_results in db_results_by_group.values():
             all_results.extend(group_results.items())
 
     # 生成汇总报告
-    generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'), config)
+    generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'), db_links)
 
     # 记录结束时间
     end_time = datetime.now()
     execution_time = end_time - start_time
     print(f"脚本执行结束,结束时间:{end_time},总耗时: {execution_time}")
 
+
+#数据库连接信息
+db_links = []
+
+#role_mode  # 运行模式 Primary_Sharding:分片节点 Primary_ReplicaSet:主从，三个节点 Primary_Single:归档节点 Master_Sharding:mongos节点
 # 初始化检查组
 check_groups = {
     "database_performance":  CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
-        CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", None),
-        CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", None),
-        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", None),
-        CheckItem("服务器运行时间检查", "", "output_contains","SERVER_UPTIME_CHECK","检查 MongoDB 服务器的运行时间。", None),
-        CheckItem("内存使用情况检查",  "", "output_contains","MEMORY_USAGE_CHECK","检查 MongoDB 服务器的内存使用情况。", None),
-        CheckItem("操作计数器检查",  "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", None),
-        CheckItem("连接数检查", "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", False)
+        CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", "Primary_ReplicaSet"),
+        CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", "Master_Sharding"),
+        CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", "Master_Sharding"),
+        CheckItem("服务器运行时间检查", "", "output_contains","SERVER_UPTIME_CHECK","检查 MongoDB 服务器的运行时间。", "Master_Sharding"),
+        CheckItem("内存使用情况检查",  "", "output_contains","MEMORY_USAGE_CHECK","检查 MongoDB 服务器的内存使用情况。", "Master_Sharding"),
+        CheckItem("操作计数器检查",  "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", "Primary_Single"),
+        CheckItem("连接数检查", "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", "Master_Sharding")
     ]),
     "database_performance2": CheckGroup("数据库性能2", "与数据库性能和配置相关的检查。", [
-        CheckItem("操作计数器检查", "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", True),
-        CheckItem("连接数检查",  "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", True)
+        CheckItem("操作计数器检查", "", "output_contains","OPCOUNTERS_CHECK","检查执行的操作数量（插入、查询、更新、删除、命令）。", "Primary_Single"),
+        CheckItem("连接数检查",  "", "output_contains","CONNECTIONS_CHECK","检查当前连接到 MongoDB 服务器的连接数。", "Master_Sharding")
     ])
 }
 
 # 添加配置
 CONFIG = {
     'outputReportDir': './reports/',
-    'dblink_source':"mysql://" # 数据库链接源
+    'dblink_source':"mysql://root:my-secret-pw@127.0.0.1:3306/db_test" # 数据库链接源
 }
 
 if __name__ == '__main__':
