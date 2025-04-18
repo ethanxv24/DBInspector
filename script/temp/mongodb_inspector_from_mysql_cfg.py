@@ -468,7 +468,7 @@ def format_result(result):
 
 # 生成详细HTML报告
 def generate_html_report(results_by_group, output_path, db_link):
-    print(f"----正在为 {db_link.instance_name}_{db_link.environment} 生成详细报告，路径为 {output_path}")  # 修改为中文
+    print(f"----正在为 [{db_link.instance_name}_{db_link.environment}] 生成详细报告，路径为:[{output_path}]")  # 修改为中文
     # 统计成功项数、错误项数以及总项数
     total_checks = sum(len(results) for results in results_by_group.values())
     passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
@@ -490,7 +490,7 @@ def generate_html_report(results_by_group, output_path, db_link):
 
 # 生成汇总HTML报告
 def generate_summary_html_report(results, output_path, db_links):
-    print(f"----正在生成汇总报告，路径为 {output_path}")
+    print(f"----正在生成汇总报告，路径为:[{output_path}]")
 
     # 获取数据库名和文件相对地址链接
     report_links = {db_link.instance_name_env:f"{db_link.instance_name_env.replace(' ', '_')}_report.html" for db_link in db_links}
@@ -527,7 +527,7 @@ def fetch_db_link_data():
         # 从配置中提取MySQL URL
         mysql_url = CONFIG.get('dblink_source', '')
 
-        print(f"--正在从mysql库查询MongoDB巡检数据，url为[{mysql_url}], 查询sql为: [{DBLINKS_SQL}]")
+        print(f"--正在从mysql库查询MongoDB巡检数据，url为: [{mysql_url}], 查询sql为: [{DBLINKS_SQL}]")
 
         if not mysql_url.startswith("mysql://"):
             raise ValueError("Invalid MySQL URL format")
@@ -573,13 +573,13 @@ def fetch_db_link_data():
     except Exception as e:
         print(f"--Unexpected Error: {e}")
     finally:
-        print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 {len(db_links)} 条数据")
+        print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 [{len(db_links)}] 条数据")
 
 # 主函数
 def main():
     # 记录开始时间
     start_time = datetime.now()
-    print(f"脚本开始执行时间: {start_time}")  # 新增输出开始时间
+    print(f"脚本开始执行时间: [{start_time}]")  # 新增输出开始时间
 
     # 获取数据库链接数据
     fetch_db_link_data()
@@ -597,9 +597,9 @@ def main():
 
     if not os.path.exists(new_output_report_dir):
         os.makedirs(new_output_report_dir)
-        print(f"----已创建新的输出报告目录: {new_output_report_dir}")  # 修改为中文
+        print(f"----已创建新的输出报告目录: [{new_output_report_dir}]")  # 修改为中文
     else:
-        print(f"----输出报告目录已存在: {new_output_report_dir}")  # 修改为中文
+        print(f"----输出报告目录已存在: [{new_output_report_dir}]")  # 修改为中文
 
 
     #加载所有检查项
@@ -626,7 +626,7 @@ def main():
     # 记录结束时间
     end_time = datetime.now()
     execution_time = end_time - start_time
-    print(f"脚本执行结束,结束时间:{end_time},总耗时: {execution_time}")
+    print(f"脚本执行结束,结束时间: [{end_time}],总耗时: [{execution_time}]")
 
 
 #数据库连接信息
