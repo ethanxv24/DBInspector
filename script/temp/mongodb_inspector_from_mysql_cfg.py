@@ -1,16 +1,16 @@
+import os
+from datetime import datetime
+import mysql.connector
+from mysql.connector import Error
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from jinja2 import Template
-from datetime import datetime
-import os
-import mysql.connector
-from mysql.connector import Error
 
 ''' readme
     MongoDB Inspection Report
     
     1. 使用方法 python3 环境 安装特定依赖
-        pip install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python==8.0.26
+        pip3 install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python==8.0.26
     2. 设置数据库执行配置
         [CONFIG]配置
     3. 执行
@@ -305,7 +305,6 @@ class DatabaseLink:
     def data_path(self):
         return self.data_path
 
-
 # 定义检查项类
 class CheckItem:
     # 定义检查项名称到方法名的映射
@@ -469,8 +468,7 @@ def format_result(result):
 
 # 生成详细HTML报告
 def generate_html_report(results_by_group, output_path, db_link):
-
-    print(f"    正在为 {db_link.instance_name}_{db_link.environment} 生成详细报告，路径为 {output_path}")  # 修改为中文
+    print(f"----正在为 {db_link.instance_name}_{db_link.environment} 生成详细报告，路径为 {output_path}")  # 修改为中文
     # 统计成功项数、错误项数以及总项数
     total_checks = sum(len(results) for results in results_by_group.values())
     passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
@@ -492,7 +490,7 @@ def generate_html_report(results_by_group, output_path, db_link):
 
 # 生成汇总HTML报告
 def generate_summary_html_report(results, output_path, db_links):
-    print(f"    正在生成汇总报告，路径为 {output_path}")
+    print(f"----正在生成汇总报告，路径为 {output_path}")
 
     # 获取数据库名和文件相对地址链接
     report_links = {db_link.instance_name_env:f"{db_link.instance_name_env.replace(' ', '_')}_report.html" for db_link in db_links}
@@ -523,12 +521,14 @@ def generate_summary_html_report(results, output_path, db_links):
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
-
 # 获取数据库链接数据
 def fetch_db_link_data():
     try:
         # 从配置中提取MySQL URL
         mysql_url = CONFIG.get('dblink_source', '')
+
+        print(f"--正在从mysql库查询MongoDB巡检数据，url为[{mysql_url}], 查询sql为: [{DBLINKS_SQL}]")
+
         if not mysql_url.startswith("mysql://"):
             raise ValueError("Invalid MySQL URL format")
 
@@ -567,13 +567,13 @@ def fetch_db_link_data():
                 #print(f"Rows:{rows}")
 
     except (ValueError, KeyError, AttributeError) as e:
-        print(f"Configuration Error: {e}")
+        print(f"--Configuration Error: {e}")
     except Error as e:
-        print(f"MySQL Error: {e}")
+        print(f"--MySQL Error: {e}")
     except Exception as e:
-        print(f"Unexpected Error: {e}")
+        print(f"--Unexpected Error: {e}")
     finally:
-        print("Database operation completed")
+        print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 {len(db_links)} 条数据")
 
 # 主函数
 def main():
@@ -585,7 +585,7 @@ def main():
     fetch_db_link_data()
 
     if not db_links:
-        print("No database links found. Exiting...")
+        print("--No database links found. Exiting...")
         return
 
     # 检查并创建输出目录
@@ -597,9 +597,9 @@ def main():
 
     if not os.path.exists(new_output_report_dir):
         os.makedirs(new_output_report_dir)
-        print(f"    已创建新的输出报告目录: {new_output_report_dir}")  # 修改为中文
+        print(f"----已创建新的输出报告目录: {new_output_report_dir}")  # 修改为中文
     else:
-        print(f"    输出报告目录已存在: {new_output_report_dir}")  # 修改为中文
+        print(f"----输出报告目录已存在: {new_output_report_dir}")  # 修改为中文
 
 
     #加载所有检查项
