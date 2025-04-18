@@ -281,8 +281,8 @@ SUMMARY_HTML_TEMPLATE= '''
 
 # 定义数据库连接结构体类
 class DatabaseLink:
-    def __init__(self, id, instance_name, environment, role_mode, data_path):
-        self.id = id
+    def __init__(self,  instance_name, environment, role_mode, data_path):
+        #self.id = id
         self.instance_name_env = instance_name+"_"+environment
         self.instance_name = instance_name
         self.environment = environment
@@ -560,7 +560,7 @@ def fetch_db_link_data():
                 cursor.execute(DBLINKS_SQL)
                 rows = cursor.fetchall()
                 for row in rows:
-                    table_obj = DatabaseLink(row['id'], row['instance_name'], row['environment'], row['role_mode'], row['data_path'])
+                    table_obj = DatabaseLink(row['instance_name'], row['environment'], row['role_mode'], row['data_path'])
                     db_links.append(table_obj)
 
                 # 调试模式下打印结果
