@@ -373,8 +373,14 @@ class CheckItem:
             }
 
     def check_mongodb_version(self, client):
-        # 检查 MongoDB 服务器的版本
-        return client.admin.command('serverStatus')['version']
+        try:
+            # 检查 MongoDB 服务器的版本
+            # 执行 serverStatus 命令并获取版本信息
+            server_status = client.admin.command('serverStatus')
+            version = server_status['version']
+            return version
+        except Exception as e:
+            print(f"--------发生错误: {e} [check_mongodb_version] ")
 
     def check_top_5_databases_size(self, client):
         # 检查前 5 大数据库的大小
