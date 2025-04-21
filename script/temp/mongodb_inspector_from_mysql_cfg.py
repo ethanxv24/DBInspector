@@ -1,4 +1,5 @@
 import os
+import threading
 from datetime import datetime
 import mysql.connector
 from mysql.connector import Error
@@ -451,7 +452,20 @@ def perform_checks(db_link, client, check_groups, checks_to_run):
             for check in check_group.checks:
                 if (check.role_mode is None) or \
                    (check.role_mode ==db_link.role_mode):
+                    check_item_start_time = datetime.now()
                     result = check.execute(client, db_link, check_group_name)
+
+                   # 记录日志
+                    check_item_end_time = datetime.now()
+                    check_item_execution_time = check_item_end_time - check_item_start_time
+                    # 如果判断执行时长 分别对超过2s、5s、20s 的情况进行不同程度的日志输出
+                    if check_item_execution_time.total_seconds() > 20:
+                        print(f"--------[!!!]执行时间超过20s,耗时:[{check_item_execution_time}],detail:[{db_link.instance_name_env}] | [{db_link.role_mode}] | [{check_group_name}] | [{check.name}]")
+                    elif check_item_execution_time.total_seconds() > 5:
+                        print(f"--------[!!]执行时间超过5s,耗时:[{check_item_execution_time}],detail:[{db_link.instance_name_env}] | [{db_link.role_mode}] | [{check_group_name}] | [{check.name}]")
+                    elif check_item_execution_time.total_seconds() > 2:
+                        print(f"--------[!]执行时间超过2s,耗时:[{check_item_execution_time}],detail:[{db_link.instance_name_env}] | [{db_link.role_mode}] | [{check_group_name}] | [{check.name}]")
+
                     group_results[f"{check.name}"] = result
             results_by_group[check_group_name] = group_results
     return results_by_group
@@ -575,6 +589,11 @@ def fetch_db_link_data():
     finally:
         print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 [{len(db_links)}] 条数据")
 
+#全局数据集
+all_results = []
+# 线程锁，用于线程安全
+lock = threading.Lock()
+
 # 主函数
 def main():
     # 记录开始时间
@@ -605,20 +624,38 @@ def main():
     #加载所有检查项
     checks_to_run = check_groups.keys()
 
-    all_results = []
+    # 任务列表
+    threads = []
+    # 创建一个信号量对象，最大并发数为 4
+    semaphore = threading.Semaphore(CONFIG['max_threads'])
 
+    def worker(db_link,checks_to_run):
+        global all_results
+        # 获取信号量，如果达到最大并发数，线程会阻塞
+        with semaphore:
+            # 模拟数据处理
+            with MongoClient(db_link.data_path, server_api=ServerApi('1')) as client:
+                db_results_by_group = perform_checks(db_link, client, check_groups, checks_to_run)
+
+            # 生成每个数据库的详细报告
+            db_report_path = os.path.join(new_output_report_dir, f'{db_link.instance_name_env.replace(" ", "_")}_report.html')
+            generate_html_report(db_results_by_group, db_report_path, db_link)
+
+            with lock:
+                # 汇总结果
+                for group_results in db_results_by_group.values():
+                    all_results.extend(group_results.items())
+                #results.append(result)
+
+    # 创建并启动线程
     for db_link in db_links:
+        thread = threading.Thread(target=worker, args=(db_link,checks_to_run,))
+        threads.append(thread)
+        thread.start()
 
-        with MongoClient(db_link.data_path, server_api=ServerApi('1')) as client:
-            db_results_by_group = perform_checks(db_link, client, check_groups, checks_to_run)
-
-        # 生成每个数据库的详细报告
-        db_report_path = os.path.join(new_output_report_dir, f'{db_link.instance_name_env.replace(" ", "_")}_report.html')
-        generate_html_report(db_results_by_group, db_report_path, db_link)
-
-        # 汇总结果
-        for group_results in db_results_by_group.values():
-            all_results.extend(group_results.items())
+    # 等待所有线程完成
+    for thread in threads:
+        thread.join()
 
     # 生成汇总报告
     generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'), db_links)
@@ -652,6 +689,8 @@ check_groups = {
 
 # 添加配置
 CONFIG = {
+    # 设置线程最大并发数
+    'max_threads': 4,
     'outputReportDir': './reports/',
     'dblink_source':"mysql://root:my-secret-pw@127.0.0.1:3306/db_test" # 数据库链接源
 }
