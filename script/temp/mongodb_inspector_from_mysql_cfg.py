@@ -136,7 +136,10 @@ DETAIL_HTML_TEMPLATE= '''
     </head>
     <body>
         <div class="database-report">
-            <h1>MongoDB Inspection Report for {{ db_name }} env: {{environment}}</h1>
+            <h1>MongoDB Inspection Report for {{ db_link.instance_name }}</h1>
+            <div class="stats">
+                <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+            </div>
             <div class="links">
                 <a href="summary_report.html">返回汇总页面</a>
             </div>
@@ -247,7 +250,10 @@ SUMMARY_HTML_TEMPLATE= '''
             </div>
             {% for db_link in db_links %}
             <div class="database-report">
-                <h2>{{ db_link.instance_name }} env: {{ db_link.environment }}</h2>
+                <h2>{{ db_link.instance_name }}</h2>
+                <div class="stats">
+                    <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+                </div>
                 <div class="links">
                     <a href="{{ report_links[db_link.instance_name_env] }}">查看详细报告</a>
                 </div>
@@ -289,16 +295,17 @@ SUMMARY_HTML_TEMPLATE= '''
 
 # 定义数据库连接结构体类
 class DatabaseLink:
-    def __init__(self,  instance_name, environment, role_mode, data_path):
-        #self.id = id
-        self.instance_name_env = instance_name+"_"+environment
+    def __init__(self,id,  instance_name, environment, role_mode,node_group_name, data_path):
+        self.id = id
+        self.instance_name_env = id+"_"+instance_name+"_"+environment
         self.instance_name = instance_name
         self.environment = environment
         self.role_mode = role_mode
+        self.node_group_name = node_group_name
         self.data_path = data_path
 
     def __str__(self):
-        return f"ID: {self.id}, Instance Name: {self.instance_name}, Environment: {self.environment}, Role Mode: {self.role_mode}, Data Path: {self.data_path}"
+        return f"ID: {self.id}, Instance Name: {self.instance_name}, Environment: {self.environment}, Role Mode: {self.role_mode}, Node Group Name: {self.node_group_name}, Data Path: {self.data_path}"
 
     def id(self):
         return self.id
@@ -310,6 +317,8 @@ class DatabaseLink:
         return self.environment
     def role_mode(self):
         return self.role_mode
+    def node_group_name(self):
+        return self.node_group_name
     def data_path(self):
         return self.data_path
 
@@ -359,6 +368,7 @@ class CheckItem:
                 'environment':db_link.environment,
                 'instance_name_env':db_link.instance_name_env,
                 'role_mode':db_link.role_mode,
+                'node_group_name':db_link.node_group_name,
                 'data_path':db_link.data_path,
                 'check_group': check_group,
                 'status': status,
@@ -372,6 +382,7 @@ class CheckItem:
                 'environment':db_link.environment,
                 'instance_name_env':db_link.instance_name_env,
                 'role_mode':db_link.role_mode,
+                'node_group_name':db_link.node_group_name,
                 'data_path':db_link.data_path,
                 'check_group': check_group,
                 'status': 'Error',
@@ -495,7 +506,7 @@ def format_result(result):
 
 # 生成详细HTML报告
 def generate_html_report(results_by_group, output_path, db_link):
-    print(f"----正在为 [{db_link.instance_name}_{db_link.environment}] 生成详细报告，路径为:[{output_path}]")  # 修改为中文
+    print(f"----正在为 [{db_link.instance_name_env}] 生成详细报告，路径为:[{output_path}]")  # 修改为中文
     # 统计成功项数、错误项数以及总项数
     total_checks = sum(len(results) for results in results_by_group.values())
     passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
@@ -511,7 +522,7 @@ def generate_html_report(results_by_group, output_path, db_link):
     filtered_results_by_group = {k: v for k, v in results_by_group.items() if v}
 
     template = Template(DETAIL_HTML_TEMPLATE)
-    html_content = template.render(results_by_group=filtered_results_by_group, db_name=db_link.instance_name,environment =db_link.environment, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
+    html_content = template.render(results_by_group=filtered_results_by_group, db_link=db_link, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
@@ -586,8 +597,9 @@ def fetch_db_link_data():
                 # 执行SQL查询
                 cursor.execute(DBLINKS_SQL)
                 rows = cursor.fetchall()
-                for row in rows:
-                    table_obj = DatabaseLink(row['instance_name'], row['environment'], row['role_mode'], row['data_path'])
+                for index, row in enumerate(rows):
+                #for row in rows:
+                    table_obj = DatabaseLink(str(index),row['instance_name'], row['environment'], row['role_mode'], row['node_group_name'],row['data_path'])
                     db_links.append(table_obj)
 
                 # 调试模式下打印结果
