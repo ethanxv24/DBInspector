@@ -135,41 +135,47 @@ DETAIL_HTML_TEMPLATE= '''
         </style>
     </head>
     <body>
-        <div class="database-report">
-            <h1>MongoDB Inspection Report for {{ db_link.instance_name }}</h1>
+    <h1>MongoDB Inspection Summary Report</h1>
             <div class="stats">
-                <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+                <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
             </div>
             <div class="links">
-                <a href="summary_report.html">返回汇总页面</a>
+                    <a href="summary_report.html">返回汇总页面</a>
+                </div>
+            {% for db_link in db_links %}
+            <div class="database-report">
+                <h1>MongoDB Inspection Report for {{ db_link.instance_name }}</h1>
+                <div class="stats">
+                    <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+                </div>
+                <div class="stats">
+                    <p>总检查项数: {{ checks_map[db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ checks_map[db_link.instance_name_env]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ checks_map[db_link.instance_name_env]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ checks_map[db_link.instance_name_env]['error_checks'] }}</span></p>
+                </div>
+                {% for check_group_name, results in checks_map[db_link.instance_name_env]['filtered_results_by_group'].items() %}
+                <h2>{{ check_group_name }}</h2>
+                <table border="1">
+                    <thead>
+                        <tr>
+                            <th>Check Item</th>
+                            <th>Status</th>
+                            <th>Actual Result</th>
+                            <th>Expected Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, result in results.items() %}
+                        <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
+                            <td>{{ name }}</td>
+                            <td>{{ result.status }}</td>
+                            <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
+                            <td>{{ result.expected_result }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endfor %}
             </div>
-            <div class="stats">
-                <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>
-            </div>
-            {% for check_group_name, results in results_by_group.items() %}
-            <h2>{{ check_group_name }}</h2>
-            <table border="1">
-                <thead>
-                    <tr>
-                        <th>Check Item</th>
-                        <th>Status</th>
-                        <th>Actual Result</th>
-                        <th>Expected Result</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for name, result in results.items() %}
-                    <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
-                        <td>{{ name }}</td>
-                        <td>{{ result.status }}</td>
-                        <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
-                        <td>{{ result.expected_result }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endfor %}
-        </div>
+        {% endfor %}
     </body>
     </html>
 '''
@@ -248,45 +254,47 @@ SUMMARY_HTML_TEMPLATE= '''
             <div class="stats">
                 <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
             </div>
-            {% for db_link in db_links %}
-            <div class="database-report">
-                <h2>{{ db_link.instance_name }}</h2>
-                <div class="stats">
-                    <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+            {% for k,db_links in db_link_maps.items() %}
+                {% for db_link in db_links %}
+                <div class="database-report">
+                    <h2>{{ db_link.instance_name }}</h2>
+                    <div class="stats">
+                        <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
+                    </div>
+                    <div class="links">
+                        <a href="{{ report_links[db_link.instance_name] }}">查看详细报告</a>
+                    </div>
+                    <div class="stats">
+                        {% set db_results = db_results[db_link.instance_name_env].items() %}
+                        {% set db_total_checks = db_results|length %}
+                        {% set db_passed_checks = db_results|selectattr('1.status', 'equalto', 'Passed')|list|length %}
+                        {% set db_failed_checks = db_results|selectattr('1.status', 'equalto', 'Failed')|list|length %}
+                        {% set db_error_checks = db_results|selectattr('1.status', 'equalto', 'Error')|list|length %}
+                        <p>总检查项数: {{ db_total_checks }} | 成功项数: <span class="passed">{{ db_passed_checks }}</span> | 错误项数: <span class="failed">{{ db_failed_checks }}</span> | 错误状态项数: <span class="error">{{ db_error_checks }}</span></p>
+                    </div>
+                    {% if db_error_checks > 0 %}
+                    <h3>错误检查项详情</h3>
+                    <table border="1">
+                        <tr>
+                            <th>Check Group</th>
+                            <th>Check Item</th>
+                            <th>Status</th>
+                            <th>Actual Result</th>
+                            <th>Expected Result</th>
+                        </tr>
+                        {% for name,result in db_results if result.status == 'Error' %}
+                        <tr>
+                            <td>{{ result.check_group }}</td>
+                            <td>{{ result.name }}</td>
+                            <td>{{ result.status }}</td>
+                            <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
+                            <td>{{ result.expected_result }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% endif %}
                 </div>
-                <div class="links">
-                    <a href="{{ report_links[db_link.instance_name_env] }}">查看详细报告</a>
-                </div>
-                <div class="stats">
-                    {% set db_results = db_results[db_link.instance_name_env].items() %}
-                    {% set db_total_checks = db_results|length %}
-                    {% set db_passed_checks = db_results|selectattr('1.status', 'equalto', 'Passed')|list|length %}
-                    {% set db_failed_checks = db_results|selectattr('1.status', 'equalto', 'Failed')|list|length %}
-                    {% set db_error_checks = db_results|selectattr('1.status', 'equalto', 'Error')|list|length %}
-                    <p>总检查项数: {{ db_total_checks }} | 成功项数: <span class="passed">{{ db_passed_checks }}</span> | 错误项数: <span class="failed">{{ db_failed_checks }}</span> | 错误状态项数: <span class="error">{{ db_error_checks }}</span></p>
-                </div>
-                {% if db_error_checks > 0 %}
-                <h3>错误检查项详情</h3>
-                <table border="1">
-                    <tr>
-                        <th>Check Group</th>
-                        <th>Check Item</th>
-                        <th>Status</th>
-                        <th>Actual Result</th>
-                        <th>Expected Result</th>
-                    </tr>
-                    {% for name,result in db_results if result.status == 'Error' %}
-                    <tr>
-                        <td>{{ result.check_group }}</td>
-                        <td>{{ result.name }}</td>
-                        <td>{{ result.status }}</td>
-                        <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
-                        <td>{{ result.expected_result }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                {% endif %}
-            </div>
+                {% endfor %}
             {% endfor %}
         </div>
     </body>
@@ -505,33 +513,54 @@ def format_result(result):
     return formatted_result
 
 # 生成详细HTML报告
-def generate_html_report(results_by_group, output_path, db_link):
-    print(f"----正在为 [{db_link.instance_name_env}] 生成详细报告，路径为:[{output_path}]")  # 修改为中文
-    # 统计成功项数、错误项数以及总项数
-    total_checks = sum(len(results) for results in results_by_group.values())
-    passed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Passed')
-    failed_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Failed')
-    error_checks = sum(1 for results in results_by_group.values() for result in results.values() if result['status'] == 'Error')
+def generate_html_report(db_results, output_path, db_links):
+    print(f"----正在为 [{db_links[0].instance_name}] 生成详细报告，路径为:[{output_path}]")  # 修改为中文
 
-    # 格式化实际结果
-    for group_results in results_by_group.values():
-        for result in group_results.values():
-            result['actual_result'] = format_result(result['actual_result'])
+    checks_map ={}
+    total_checks,passed_checks,failed_checks,error_checks = 0,0,0,0
 
-    # 过滤掉没有检查项的检查组
-    filtered_results_by_group = {k: v for k, v in results_by_group.items() if v}
+    for instance_name_env,db_result in db_results.items():
+        # 统计成功项数、错误项数以及总项数
+        checks_map[instance_name_env] = {
+            'total_checks': sum(len(group_results) for group_results in db_result.values()),
+            'passed_checks': sum(1 for group_results in db_result.values() for result in group_results.values() if result['status'] == 'Passed'),
+            'failed_checks': sum(1 for group_results in db_result.values() for result in group_results.values() if result['status'] == 'Failed'),
+            'error_checks': sum(1 for group_results in db_result.values() for result in group_results.values() if result['status'] == 'Error')
+        }
+
+        # # 统计成功项数、错误项数以及总项数
+        # checks_map[instance_name_env]['total_checks'] = sum(len(results) for results in db_result.values())
+        # checks_map[instance_name_env]['passed_checks'] = sum(1 for results in db_result.values() for result in results.values() if result['status'] == 'Passed')
+        # checks_map[instance_name_env]['failed_checks']  = sum(1 for results in db_result.values() for result in results.values() if result['status'] == 'Failed')
+        # checks_map[instance_name_env]['error_checks']  = sum(1 for results in db_result.values() for result in results.values() if result['status'] == 'Error')
+        #
+
+
+        # 格式化实际结果
+        for group_results in db_result.values():
+            for result in group_results.values():
+                result['actual_result'] = format_result(result['actual_result'])
+
+        # 过滤掉没有检查项的检查组
+        checks_map[instance_name_env]['filtered_results_by_group'] = {k: v for k, v in db_result.items() if v}
+
+        for  instance_name_env,stats in checks_map.items():
+            total_checks += stats['total_checks']
+            passed_checks += stats['passed_checks']
+            failed_checks += stats['failed_checks']
+            error_checks += stats['error_checks']
 
     template = Template(DETAIL_HTML_TEMPLATE)
-    html_content = template.render(results_by_group=filtered_results_by_group, db_link=db_link, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
+    html_content = template.render(checks_map=checks_map, db_links=db_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks)
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
 # 生成汇总HTML报告
-def generate_summary_html_report(results, output_path, db_links):
+def generate_summary_html_report(results, output_path):
     print(f"----正在生成汇总报告，路径为:[{output_path}]")
 
     # 获取数据库名和文件相对地址链接
-    report_links = {db_link.instance_name_env:f"{db_link.instance_name_env.replace(' ', '_')}_report.html" for db_link in db_links}
+    report_links = {k:f"{k.replace(' ', '_')}_report.html" for k,db_link in db_link_maps.items()}
 
     # 修正总检查项数统计方式
     total_checks = len([r for r in results if r[1]['status'] in ['Passed', 'Failed', 'Error']])
@@ -543,8 +572,14 @@ def generate_summary_html_report(results, output_path, db_links):
 
     # 按数据库分组统计
     db_results = {}
-    for db_link in db_links:
-        db_results[db_link.instance_name_env] = {f'{name}_{result["check_group"]}': result for name, result in results if db_link.instance_name_env == result['instance_name_env']}
+    for k,db_links in db_link_maps.items():
+        for db_link in db_links:
+            db_results[db_link.instance_name_env] = {
+                f'{name}_{result["check_group"]}': result
+                for name, result in results
+                if db_link.instance_name_env == result['instance_name_env']
+            }
+            #db_results[v.instance_name_env] = {f'{name}_{result["check_group"]}': result for name, result in results if v.instance_name_env == result['instance_name_env']}
 
     # 格式化实际结果
     for db_name, results in db_results.items():
@@ -555,7 +590,7 @@ def generate_summary_html_report(results, output_path, db_links):
     filtered_db_results = {k: v for k, v in db_results.items() if v}
 
     template = Template(SUMMARY_HTML_TEMPLATE)
-    html_content = template.render(results=results, report_links=report_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks, db_links=db_links, db_results=filtered_db_results)  # 更新模板渲染参数
+    html_content = template.render(results=results, report_links=report_links, total_checks=total_checks, passed_checks=passed_checks, failed_checks=failed_checks, error_checks=error_checks, db_link_maps=db_link_maps, db_results=filtered_db_results)  # 更新模板渲染参数
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
@@ -600,7 +635,13 @@ def fetch_db_link_data():
                 for index, row in enumerate(rows):
                 #for row in rows:
                     table_obj = DatabaseLink(str(index),row['instance_name'], row['environment'], row['role_mode'], row['node_group_name'],row['data_path'])
-                    db_links.append(table_obj)
+                    #db_links.append(table_obj)
+
+                    # 将 DatabaseLink 对象添加到 db_link_maps 中，根据 instance_name 分组
+                    instance_name = row['instance_name']
+                    if instance_name not in db_link_maps:
+                        db_link_maps[instance_name] = []
+                    db_link_maps[instance_name].append(table_obj)
 
                 # 调试模式下打印结果
                 #print(f"Rows:{rows}")
@@ -612,7 +653,7 @@ def fetch_db_link_data():
     except Exception as e:
         print(f"--Unexpected Error: {e}")
     finally:
-        print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 [{len(db_links)}] 条数据")
+        print(f"--mysql数据库巡检数据查询完成,从mysql库查询到MongoDB巡检数据，共 [{len(rows)}] 条数据")
 
 #全局数据集
 all_results = []
@@ -628,7 +669,7 @@ def main():
     # 获取数据库链接数据
     fetch_db_link_data()
 
-    if not db_links:
+    if not db_link_maps:
         print("--No database links found. Exiting...")
         return
 
@@ -654,27 +695,36 @@ def main():
     # 创建一个信号量对象，最大并发数为 4
     semaphore = threading.Semaphore(CONFIG['max_threads'])
 
-    def worker(db_link,checks_to_run):
+    def worker(db_links,checks_to_run):
         global all_results
         # 获取信号量，如果达到最大并发数，线程会阻塞
         with semaphore:
-            # 模拟数据处理
-            with MongoClient(db_link.data_path, server_api=ServerApi('1')) as client:
-                db_results_by_group = perform_checks(db_link, client, check_groups, checks_to_run)
+
+            if len(db_links) == 0:
+                print("--No database links found. Exiting...")
+                return
+
+            db_results = {}
+
+            for db_link in db_links:
+                # 模拟数据处理
+                with MongoClient(db_link.data_path, server_api=ServerApi('1')) as client:
+                    db_results_by_group = perform_checks(db_link, client, check_groups, checks_to_run)
+                    db_results[db_link.instance_name_env] = db_results_by_group
+
+                with lock:
+                    # 汇总结果
+                    for group_results in db_results_by_group.values():
+                        all_results.extend(group_results.items())
+                    #results.append(result)
 
             # 生成每个数据库的详细报告
-            db_report_path = os.path.join(new_output_report_dir, f'{db_link.instance_name_env.replace(" ", "_")}_report.html')
-            generate_html_report(db_results_by_group, db_report_path, db_link)
-
-            with lock:
-                # 汇总结果
-                for group_results in db_results_by_group.values():
-                    all_results.extend(group_results.items())
-                #results.append(result)
+            db_report_path = os.path.join(new_output_report_dir, f'{db_links[0].instance_name.replace(" ", "_")}_report.html')
+            generate_html_report(db_results, db_report_path, db_links)
 
     # 创建并启动线程
-    for db_link in db_links:
-        thread = threading.Thread(target=worker, args=(db_link,checks_to_run,))
+    for k,db_links in db_link_maps.items():
+        thread = threading.Thread(target=worker, args=(db_links,checks_to_run,))
         threads.append(thread)
         thread.start()
 
@@ -683,7 +733,7 @@ def main():
         thread.join()
 
     # 生成汇总报告
-    generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'), db_links)
+    generate_summary_html_report(all_results, os.path.join(new_output_report_dir, 'summary_report.html'))
 
     # 记录结束时间
     end_time = datetime.now()
@@ -692,7 +742,10 @@ def main():
 
 
 #数据库连接信息
-db_links = []
+
+#db_links = []
+
+db_link_maps ={}
 
 #role_mode  # 运行模式 Primary_Sharding:分片节点 Primary_ReplicaSet:主从，三个节点 Primary_Single:归档节点 Master_Sharding:mongos节点
 # 初始化检查组
