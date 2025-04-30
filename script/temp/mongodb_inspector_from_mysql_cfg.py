@@ -111,6 +111,9 @@ DETAIL_HTML_TEMPLATE= '''
                 margin: 20px;
                 border-radius: 5px;
             }
+            .auto-wrap {
+                white-space: pre-wrap;
+            }
             .links {
                 margin-bottom: 20px;
             }
@@ -135,46 +138,43 @@ DETAIL_HTML_TEMPLATE= '''
         </style>
     </head>
     <body>
-    <h1>MongoDB Inspection Summary Report</h1>
+    <h1>MongoDB Inspection Report for {{ db_links[0].instance_name }}</h1>
+        <div class="stats">
+            <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
+        </div>
+        <div class="links">
+                <a href="summary_report.html">返回汇总页面</a>
+            </div>
+        {% for db_link in db_links %}
+        <div class="database-report">
+            <h2>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</h2>
             <div class="stats">
-                <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
+                <p>总检查项数: {{ checks_map[db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ checks_map[db_link.instance_name_env]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ checks_map[db_link.instance_name_env]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ checks_map[db_link.instance_name_env]['error_checks'] }}</span></p>
             </div>
-            <div class="links">
-                    <a href="summary_report.html">返回汇总页面</a>
-                </div>
-            {% for db_link in db_links %}
-            <div class="database-report">
-                <h1>MongoDB Inspection Report for {{ db_link.instance_name }}</h1>
-                <div class="stats">
-                    <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
-                </div>
-                <div class="stats">
-                    <p>总检查项数: {{ checks_map[db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ checks_map[db_link.instance_name_env]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ checks_map[db_link.instance_name_env]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ checks_map[db_link.instance_name_env]['error_checks'] }}</span></p>
-                </div>
-                {% for check_group_name, results in checks_map[db_link.instance_name_env]['filtered_results_by_group'].items() %}
-                <h2>{{ check_group_name }}</h2>
-                <table border="1">
-                    <thead>
-                        <tr>
-                            <th>Check Item</th>
-                            <th>Status</th>
-                            <th>Actual Result</th>
-                            <th>Expected Result</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for name, result in results.items() %}
-                        <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
-                            <td>{{ name }}</td>
-                            <td>{{ result.status }}</td>
-                            <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
-                            <td>{{ result.expected_result }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% endfor %}
-            </div>
+            {% for check_group_name, results in checks_map[db_link.instance_name_env]['filtered_results_by_group'].items() %}
+            <h2>{{ check_group_name }}</h2>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Check Item</th>
+                        <th>Status</th>
+                        <th>Actual Result</th>
+                        <th>Expected Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, result in results.items() %}
+                    <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
+                        <td>{{ name }}</td>
+                        <td>{{ result.status }}</td>
+                        <td><pre class="auto-wrap">{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
+                        <td>{{ result.expected_result }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
         {% endfor %}
     </body>
     </html>
@@ -224,6 +224,9 @@ SUMMARY_HTML_TEMPLATE= '''
                 padding: 20px;
                 margin: 20px;
                 border-radius: 5px;
+            }
+            .auto-wrap {
+                white-space: pre-wrap;
             }
             .links {
                 margin-bottom: 20px;
@@ -287,7 +290,7 @@ SUMMARY_HTML_TEMPLATE= '''
                             <td>{{ result.check_group }}</td>
                             <td>{{ result.name }}</td>
                             <td>{{ result.status }}</td>
-                            <td><pre>{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
+                            <td><pre class="auto-wrap">{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
                             <td>{{ result.expected_result }}</td>
                         </tr>
                         {% endfor %}
