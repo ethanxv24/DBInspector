@@ -346,7 +346,10 @@ class CheckItem:
         "MEMORY_USAGE_CHECK": "check_memory_usage", # 检查内存使用情况
         "OPCOUNTERS_CHECK": "check_opcounters", # 检查opcounters
         "CONNECTIONS_CHECK": "check_connections", # 检查连接数
-        "CHECK_CLUSTER_STATUS":"check_cluster_status" # 检查集群状态
+        "CLUSTER_STATUS_CHECK":"check_cluster_status", # 检查集群状态
+        "SHARDS_STATUS_CHECK": "check_shards_status",  # 获取分片信息
+        "DATABASES_STATUS_CHECK": "check_databases_status"  # 获取数据库分片信息
+
     }
 
     def __init__(self, name, expected_value, check_type, exec_func, remark, role_mode=None):
@@ -468,17 +471,63 @@ class CheckItem:
         return client.admin.command('serverStatus')['connections']
 
     def check_cluster_status(self, client):
-        # 检查 MongoDB 集群状态
         cluster_status = client.admin.command('replSetGetStatus')
-        return {
-            'set': cluster_status.get('set'),
-            'members': [{
-                '_id': member.get('_id'),
-                'name': member.get('name'),
-                'health': member.get('health'),
-                'stateStr': member.get('stateStr')
-            } for member in cluster_status.get('members', [])]
-        }
+        result = []
+        # 添加集群名称
+        result.append(f'RS Name: {cluster_status.get("set")}')
+        result.append('Members:')
+
+        # 处理每个成员的信息
+        for member in cluster_status.get('members', []):
+            result.append(f"- ID: {member.get('_id')} Host: {member.get('name')} State: {member.get('stateStr')} Is Primary: {member.get('stateStr') == 'PRIMARY'} Is Secondary: {member.get('stateStr') == 'SECONDARY'}")
+            # result.append(f"Host: {member.get('name')}")
+            # result.append(f"State: {member.get('stateStr')}")
+            # result.append(f"Is Primary: {member.get('stateStr') == 'PRIMARY'}")
+            # result.append(f"Is Secondary: {member.get('stateStr') == 'SECONDARY'}")
+            # result.append("----------------------")
+
+        # 使用 '\n' 连接所有元素
+        return '\n'.join(result)
+
+    def is_mongos(self,client):
+        try:
+            result = client.admin.command("ismaster")
+            return result.get("msg") == "isdbgrid"
+        except:
+            return False
+
+    def check_shards_status(self, client):
+        if not self.is_mongos(client):
+            return "当前连接不是 mongos 实例，无法执行 sh.status()。"
+
+        try:
+            sh_status = client.admin.command("shStatus")
+            return sh_status.get("shards", {})
+        except Exception as e:
+            print(f"--------发生错误: {e} [check_shards_status] ")
+            return str(e)
+
+    def check_databases_status(self, client):
+        if not self.is_mongos(client):
+            return "当前连接不是 mongos 实例，无法执行 sh.status()。"
+
+        try:
+            sh_status = client.admin.command('shStatus')
+            databases_info = sh_status.get('databases', {})
+
+            formatted_output = []
+            for db_id, db_info in databases_info.items():
+                formatted_output.append(
+                    f"db: {db_id}\n"
+                    f"primary: {db_info.get('primary')}\n"
+                    f"partitioned: {db_info.get('partitioned')}\n"
+                )
+
+            return '\n'.join(formatted_output)
+        except Exception as e:
+            print(f"--------发生错误: {e} [check_databases_status] ")
+            return str(e)
+
 
 # 定义检查组类
 class CheckGroup:
@@ -502,11 +551,11 @@ def perform_checks(db_link, client, check_groups, checks_to_run):
             group_results = {}
             for check in check_group.checks:
                 if (check.role_mode is None) or \
-                   (check.role_mode ==db_link.role_mode):
+                        (check.role_mode ==db_link.role_mode):
                     check_item_start_time = datetime.now()
                     result = check.execute(client, db_link, check_group_name)
 
-                   # 记录日志
+                    # 记录日志
                     check_item_end_time = datetime.now()
                     check_item_execution_time = check_item_end_time - check_item_start_time
                     # 如果判断执行时长 分别对超过2s、5s、20s 的情况进行不同程度的日志输出
@@ -525,6 +574,7 @@ def perform_checks(db_link, client, check_groups, checks_to_run):
 def format_result(result):
     import json
     try:
+        parsed_json = json.loads(result)
         formatted_result = json.dumps(result,ensure_ascii=False, indent=4)
     except (TypeError, json.JSONDecodeError):
         formatted_result = result
@@ -763,8 +813,6 @@ def main():
             with lock:
                 # 汇总结果
                 all_results.update(db_results)
-               # all_results.append(db_results)
-                #all_results.extend(db_results.items())
 
 
             # 生成每个数据库的详细报告
@@ -800,7 +848,9 @@ db_link_maps ={}
 # 初始化检查组
 check_groups = {
     "database_performance":  CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
-        CheckItem("集群状态检查", "", "output_contains","CHECK_CLUSTER_STATUS","检查 MongoDB 集群状态，并输出 rs.status().set 和 rs.status().members._id, name, health, stateStr 信息。", RM_PRIMARY_REPLICASET),
+        CheckItem("db分片信息", "", "output_contains", "DATABASES_STATUS_CHECK", "获取 sh.status().databases 并格式化输出每个数据库的 _id、primary、partitioned 状态。", RM_MASTER_SHARDING),
+        CheckItem("集群分片信息", "", "output_contains", "SHARDS_STATUS_CHECK", "获取 sh.status().shards 的内容，显示所有分片的信息。", RM_MASTER_SHARDING),
+        CheckItem("集群状态检查", "", "output_contains","CLUSTER_STATUS_CHECK","检查 MongoDB 集群状态，并输出 rs.status().set 和 rs.status().members._id, name, health, stateStr 信息。", RM_PRIMARY_REPLICASET),
         CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", RM_PRIMARY_REPLICASET),
         CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", RM_MASTER_SHARDING),
         CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", RM_MASTER_SHARDING),
