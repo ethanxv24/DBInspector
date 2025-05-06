@@ -141,7 +141,7 @@ DETAIL_HTML_TEMPLATE= '''
     <body>
     <h1>MongoDB Inspection Report for {{ db_links[0].instance_name }}</h1>
         <div class="stats">
-            <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
+            <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 失败项数: <span class="failed">{{ failed_checks }}</span> | 错误项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
         </div>
         <div class="links">
                 <a href="summary_report.html">返回汇总页面</a>
@@ -150,7 +150,7 @@ DETAIL_HTML_TEMPLATE= '''
         <div class="database-report">
             <h2>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</h2>
             <div class="stats">
-                <p>总检查项数: {{ checks_map[db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ checks_map[db_link.instance_name_env]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ checks_map[db_link.instance_name_env]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ checks_map[db_link.instance_name_env]['error_checks'] }}</span></p>
+                <p>总检查项数: {{ checks_map[db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ checks_map[db_link.instance_name_env]['passed_checks'] }}</span> | 失败项数: <span class="failed">{{ checks_map[db_link.instance_name_env]['failed_checks'] }}</span> | 错误项数: <span class="error">{{ checks_map[db_link.instance_name_env]['error_checks'] }}</span></p>
             </div>
             {% for check_group_name, results in checks_map[db_link.instance_name_env]['filtered_results_by_group'].items() %}
             <h2>{{ check_group_name }}</h2>
@@ -255,7 +255,7 @@ SUMMARY_HTML_TEMPLATE= '''
     <body>
             <h1>MongoDB Inspection Summary Report</h1>
             <div class="stats">
-                <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 错误项数: <span class="failed">{{ failed_checks }}</span> | 错误状态项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
+                <p>总检查项数: {{ total_checks }} | 成功项数: <span class="passed">{{ passed_checks }}</span> | 失败项数: <span class="failed">{{ failed_checks }}</span> | 错误项数: <span class="error">{{ error_checks }}</span></p>  <!-- 新增显示Error项数 -->
             </div>
             {% for instance_name,db_links in db_link_maps.items() %}
             <div class="summary-report">
@@ -264,40 +264,49 @@ SUMMARY_HTML_TEMPLATE= '''
                     <a href="{{ report_links[instance_name] }}">查看详细报告</a>
                 </div>
                 <div class="stats">
-                    <p>总检查项数: {{ check_instance_map[instance_name]['total_checks'] }} | 成功项数: <span class="passed">{{ check_instance_map[instance_name]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ check_instance_map[instance_name]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ check_instance_map[instance_name]['error_checks'] }}</span></p>  <!-- 新增显示Error项数 -->
+                    <p>总检查项数: {{ check_instance_map[instance_name]['total_checks'] }} | 成功项数: <span class="passed">{{ check_instance_map[instance_name]['passed_checks'] }}</span> | 失败项数: <span class="failed">{{ check_instance_map[instance_name]['failed_checks'] }}</span> | 错误项数: <span class="error">{{ check_instance_map[instance_name]['error_checks'] }}</span></p>  <!-- 新增显示Error项数 -->
                 </div>
                 {% for db_link in db_links %}
                     <div class="database-report">
                         <div class="stats">
                         <p>Env: {{ db_link.environment }} | Role_Mode: {{db_link.role_mode}} | Node_Group_Name: {{db_link.node_group_name}}</p>
                     </div>
+                    
                     <div class="stats">
-                        <p>总检查项数: {{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['passed_checks'] }}</span> | 错误项数: <span class="failed">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['failed_checks'] }}</span> | 错误状态项数: <span class="error">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['error_checks'] }}</span></p>  <!-- 新增显示Error项数 -->
-                
-                        {% set db_results_detail = check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env].items() %}
-                        {% set db_error_checks = db_results_detail|selectattr('1.status', 'equalto', 'Error')|list|length %}
+                        <p>总检查项数: {{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['total_checks'] }} | 成功项数: <span class="passed">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['passed_checks'] }}</span> | 失败项数: <span class="failed">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['failed_checks'] }}</span> | 错误项数: <span class="error">{{ check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env]['error_checks'] }}</span></p>  <!-- 新增显示Error项数 -->
                     </div>
-                    {% if db_error_checks > 0 %}
-                    <h3>错误检查项详情</h3>
-                    <table border="1">
-                        <tr>
-                            <th>Check Group</th>
-                            <th>Check Item</th>
-                            <th>Status</th>
-                            <th>Actual Result</th>
-                            <th>Expected Result</th>
-                        </tr>
-                        {% for name,result in db_results if result.status == 'Error' %}
-                        <tr>
-                            <td>{{ result.check_group }}</td>
-                            <td>{{ result.name }}</td>
-                            <td>{{ result.status }}</td>
-                            <td><pre class="auto-wrap">{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
-                            <td>{{ result.expected_result }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                    {% endif %}
+                    
+                    {% for check_group_name, results in check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env][db_link.instance_name_env].items() %}
+                        {% set db_results = check_instance_map[instance_name]['filtered_results_by_group'][db_link.instance_name_env][db_link.instance_name_env][check_group_name].items()  %}
+                        {% set db_error_checks = db_results|selectattr('1.status', 'equalto', 'Error')|list|length %}
+                        {% set db_failed_checks = db_results|selectattr('1.status', 'equalto', 'Failed')|list|length %}
+                        {% if db_error_checks > 0 or db_failed_checks > 0 %}
+                        <h2>{{ check_group_name }}</h2>
+                        <table border="1">
+                            <thead>
+                                <tr>
+                                    <th>Check Item</th>
+                                    <th>Status</th>
+                                    <th>Actual Result</th>
+                                    <th>Expected Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, result in results.items() if result.status == 'Error' or result.status == 'Failed'  %}
+                                <tr class="{{ result.status.lower() }}"> <!-- 根据状态添加类 -->
+                                    <td>{{ name }}</td>
+                                    <td>{{ result.status }}</td>
+                                    <td><pre class="auto-wrap">{{ result.actual_result }}</pre></td> <!-- 使用 <pre> 标签保留格式 -->
+                                    <td>{{ result.expected_result }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% endif %}
+                    {% endfor %}
+            
+            
+            
                 </div>
                 {% endfor %}
             </div>
@@ -305,6 +314,12 @@ SUMMARY_HTML_TEMPLATE= '''
     </body>
     </html>
 '''
+
+# 定义自定义异常类
+class CustomError(Exception):
+    def __init__(self, message="这是一个自定义错误"):
+        self.message = message
+        super().__init__(self.message)
 
 # 定义数据库连接结构体类
 class DatabaseLink:
@@ -498,7 +513,7 @@ class CheckItem:
 
     def check_shards_status(self, client):
         if not self.is_mongos(client):
-            return "当前连接不是 mongos 实例，无法执行 sh.status()。"
+            raise CustomError('当前连接不是 mongos 实例，无法执行 sh.status()。')
 
         try:
             sh_status = client.admin.command("shStatus")
@@ -509,7 +524,7 @@ class CheckItem:
 
     def check_databases_status(self, client):
         if not self.is_mongos(client):
-            return "当前连接不是 mongos 实例，无法执行 sh.status()。"
+            raise CustomError('当前连接不是 mongos 实例，无法执行 sh.status()。')
 
         try:
             sh_status = client.admin.command('shStatus')
@@ -574,7 +589,7 @@ def perform_checks(db_link, client, check_groups, checks_to_run):
 def format_result(result):
     import json
     try:
-        parsed_json = json.loads(result)
+        #parsed_json = json.loads(result)
         formatted_result = json.dumps(result,ensure_ascii=False, indent=4)
     except (TypeError, json.JSONDecodeError):
         formatted_result = result
