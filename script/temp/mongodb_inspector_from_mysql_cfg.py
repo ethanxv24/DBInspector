@@ -14,6 +14,7 @@ from jinja2 import Template
         pip3 install jinja2==3.1.4 pymongo==4.11.3 mysql-connector-python==8.0.26
     2. 设置数据库执行配置
         [CONFIG]配置
+        [DBLINKS_SQL] 查询sql修正
     3. 执行
         python3 ./mongodb_inspector.py
 '''
@@ -338,13 +339,14 @@ class DatabaseLink:
 class CheckItem:
     # 定义检查项名称到方法名的映射
     METHOD_MAP = {
-        "MONGODB_VERSION_CHECK": "check_mongodb_version",
-        "TOP_5_DATABASES_SIZE_CHECK": "check_top_5_databases_size",
-        "COLLECTION_STATS_CHECK": "check_collection_stats",
-        "SERVER_UPTIME_CHECK": "check_server_uptime",
-        "MEMORY_USAGE_CHECK": "check_memory_usage",
-        "OPCOUNTERS_CHECK": "check_opcounters",
-        "CONNECTIONS_CHECK": "check_connections"
+        "MONGODB_VERSION_CHECK": "check_mongodb_version", # 检查MongoDB版本
+        "TOP_5_DATABASES_SIZE_CHECK": "check_top_5_databases_size", # 检查数据库大小
+        "COLLECTION_STATS_CHECK": "check_collection_stats", # 检查集合统计信息
+        "SERVER_UPTIME_CHECK": "check_server_uptime", # 检查服务器运行时间
+        "MEMORY_USAGE_CHECK": "check_memory_usage", # 检查内存使用情况
+        "OPCOUNTERS_CHECK": "check_opcounters", # 检查opcounters
+        "CONNECTIONS_CHECK": "check_connections", # 检查连接数
+        "CHECK_CLUSTER_STATUS":"check_cluster_status" # 检查集群状态
     }
 
     def __init__(self, name, expected_value, check_type, exec_func, remark, role_mode=None):
@@ -464,6 +466,19 @@ class CheckItem:
     def check_connections(self, client):
         # 检查当前连接到 MongoDB 服务器的连接数
         return client.admin.command('serverStatus')['connections']
+
+    def check_cluster_status(self, client):
+        # 检查 MongoDB 集群状态
+        cluster_status = client.admin.command('replSetGetStatus')
+        return {
+            'set': cluster_status.get('set'),
+            'members': [{
+                '_id': member.get('_id'),
+                'name': member.get('name'),
+                'health': member.get('health'),
+                'stateStr': member.get('stateStr')
+            } for member in cluster_status.get('members', [])]
+        }
 
 # 定义检查组类
 class CheckGroup:
@@ -785,6 +800,7 @@ db_link_maps ={}
 # 初始化检查组
 check_groups = {
     "database_performance":  CheckGroup("数据库性能", "与数据库性能和配置相关的检查。",[
+        CheckItem("集群状态检查", "", "output_contains","CHECK_CLUSTER_STATUS","检查 MongoDB 集群状态，并输出 rs.status().set 和 rs.status().members._id, name, health, stateStr 信息。", RM_PRIMARY_REPLICASET),
         CheckItem("MongoDB 版本检查", "", "output_contains","MONGODB_VERSION_CHECK","检查 MongoDB 服务器的版本。", RM_PRIMARY_REPLICASET),
         CheckItem("前 5 大数据库大小检查", "", "output_contains","TOP_5_DATABASES_SIZE_CHECK","检查前 5 大数据库的大小。", RM_MASTER_SHARDING),
         CheckItem("集合统计信息检查",  "", "output_contains","COLLECTION_STATS_CHECK","检查每个集合的存储、数据和索引大小。", RM_MASTER_SHARDING),
