@@ -165,7 +165,12 @@ class CheckItem:
 
     def check_memory_usage(self, client):
         # 检查 MongoDB 服务器的内存使用情况 db.serverStatus().mem
-        return client.admin.command('serverStatus')['mem']
+        mem_data =  client.admin.command('serverStatus')['mem']
+        return {
+            'memory_use_check_bits': mem_data['bits'],
+            'memory_use_check_resident': mem_data['resident'],
+            'memory_use_check_virtual': mem_data['virtual'],
+        }
 
     def check_opcounters(self, client):
         # 检查执行的操作数量（插入、查询、更新、删除、命令） db.serverStatus().opcounters
