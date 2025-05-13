@@ -69,10 +69,6 @@ class CheckItem:
             for k, v in actual_result.items():
                 results.append((DB_TYPE_MONGODB,db_link['instance_name'], db_link['node_group_name'],k,v, datetime.now(),  BATCH_ID, CURRENT_DT))
 
-
-            # actual_result 转成string
-            #actual_result = str(actual_result)
-
             return results
 
         except Exception as e:
@@ -172,9 +168,10 @@ class CheckItem:
             'memory_use_check_virtual': mem_data['virtual'],
         }
 
+    # 未知测量值
     def check_opcounters(self, client):
         # 检查执行的操作数量（插入、查询、更新、删除、命令） db.serverStatus().opcounters
-        return client.admin.command('serverStatus')['opcounters']
+        return {'check_opcounters':client.admin.command('serverStatus')['opcounters']}
 
     def check_connections(self, client):
         # 检查当前连接到 MongoDB 服务器的连接数 db.serverStatus().connections
@@ -218,35 +215,36 @@ class CheckItem:
 
     def check_shards_status(self, client):
         if not self.is_mongos(client):
-            raise CustomError('当前连接不是 mongos 实例，无法执行 sh.status()。')
+            return {}
 
         try:
-            sh_status = client.admin.command("shStatus")
-            return {'check_shards_status': sh_status.get("shards", {})}
+            # 使用 listShards 命令代替 shStatus
+            shards_info = client.admin.command({"listShards": 1})
+            return {'check_shards_status': shards_info.get("shards", {})}
         except Exception as e:
             print(f"--------发生错误: {e} [check_shards_status] ")
-            return str(e)
+            return {'check_shards_status': str(e)}
 
     def check_databases_status(self, client):
         if not self.is_mongos(client):
-            raise CustomError('当前连接不是 mongos 实例，无法执行 sh.status()。')
+            return {}
 
         try:
-            sh_status = client.admin.command('shStatus')
-            databases_info = sh_status.get('databases', {})
-
+            config_db = client['config']
+            databases = config_db['databases'].find({})
             formatted_output = []
-            for db_id, db_info in databases_info.items():
+
+            for db in databases:
                 formatted_output.append(
-                    f"db: {db_id}\n"
-                    f"primary: {db_info.get('primary')}\n"
-                    f"partitioned: {db_info.get('partitioned')}\n"
+                    f"db: {db.get('_id')}\n"
+                    f"primary: {db.get('primary')}\n"
+                    f"partitioned: {db.get('partitioned')}\n"
                 )
 
             return {'check_databases_status': '\n'.join(formatted_output)}
         except Exception as e:
             print(f"--------发生错误: {e} [check_databases_status] ")
-            return str(e)
+            return {'check_shards_status': str(e)}
 
 # 执行检查
 def perform_checks(db_link, client):
@@ -443,7 +441,8 @@ def main():
 
             results = []
 
-            with MongoClient(db_link['data_path'], server_api=ServerApi('1')) as client:
+            #with MongoClient(db_link['data_path'], server_api=ServerApi('1')) as client:
+            with MongoClient(db_link['data_path']) as client:
                 check_results = perform_checks(db_link, client)
                 results.extend(check_results)
 
